@@ -1,0 +1,7 @@
+all main code is located in the PISCES folder - that's the bulk of it.
+
+tbx holds the arctoolbox, which has some python code integrated into it and some 'advanced' uses of
+an arcgis toolbox to integrate with a database. The scripts that handle the inputs from the toolbox
+are still located in the PISCES folder
+
+The utils directory is a set of one-off scripts that perform a particular function.
