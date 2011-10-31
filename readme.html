@@ -25,6 +25,11 @@
 		border: 1px dashed #933;
 		padding:1em;
 	}
+	
+	h3{
+		font-size: .9em;
+		color: #115;
+	}
 </style>
 
 </head>
@@ -41,43 +46,92 @@
 	<ol>
 		<li><a href="#structure">Files and Structure</a>
 			<ol>
-				<li><a href="#adding">Adding New Code</a></li>
+				<li><a href="#adding">Adding New Code and Making Changes</a></li>
 			</ol>
 		</li>
-		<li><a href="#remote">Accessing Remotely</a></li>
+		<li><a href="#remote">Accessing Remotely or Copying to Your Computer</a></li>
 		<li><a href="#versioncontrol">Version Control</a></li>
 		<li><a href="#purpose">Purpose</a></li>
+		<li><a href="#questions">Questions?</a></li>
 	</ol>
 	
 	
 	<h2><a name="structure"></a>Files and Structure</h2>
-	<p>The folders here include:</p>
-	<ul>
-		<li><span class="foldername">code</span> - Intuitively, code lives here. Please create a subfolder with the name of the script, utility
-		or project you are working on, even if your script is only a single file. It'll keep things organized.</li>
-		
-		<li><span class="foldername">dependencies</span> - This is a central folder where we can store installable software that is
-		required to run code. Examples would generally be python modules and small executables that members of the Sierra Team are not
-		likely to have on their computer without installing them. You can keep these types of files in a specific project's code folder
-		if you like, but software required to run more than one script (eg, PyODBC, ImageMagick, etc) really belongs here.</li>
-		
-		<li><span class="foldername">releases</span> - Totally optional - you don't need to use this folder if you don't want to.
-		You can put finished scripts (or finished for the time-being scripts) into this folder as a zip file (with a version number, if possible).
-		If you then email Nick (nrsantos@ucd) with the zip file's name, I will post it to Hydra's copy of the code library
-		so it can be easily distributed.</li>
-		
-		<li><span class="foldername">.hg</span> - don't touch this folder. At all. Thank you!</li>
-	</ul>
+		<p>The folders here include:</p>
+		<ul>
+			<li><span class="foldername">code</span> - Intuitively, code lives here. Please create a subfolder with the name of the script, utility
+			or project you are working on, even if your script is only a single file. It'll keep things organized.</li>
+			
+			<li><span class="foldername">dependencies</span> - This is a central folder where we can store installable software that is
+			required to run code. Examples would generally be python modules and small executables that members of the Sierra Team are not
+			likely to have on their computer without installing them. You can keep these types of files in a specific project's code folder
+			if you like, but software required to run more than one script (eg, PyODBC, ImageMagick, etc) really belongs here.</li>
+			
+			<li><span class="foldername">releases</span> - Totally optional - you don't need to use this folder if you don't want to.
+			You can put finished scripts (or finished for the time-being scripts) into this folder as a zip file (with a version number, if possible).
+			If you then email Nick (nrsantos@ucd) with the zip file's name, I will post it to Hydra's copy of the code library
+			so it can be easily distributed.</li>
+			
+			<li><span class="foldername">.hg</span> - don't touch this folder. At all. Thank you!</li>
+		</ul>
 	
-	<h2><a name="remote"></a>Accessing Remotely</h2>
-	
+		<h3>Adding New Code and Making Changes</h3>
+			<p>Two kinds of code live in the code library:</p>
+			
+			<ol>
+				<li>scripts and utilities that are primarily located here (ie, changes are made directly to the code library
+				files) and</li>
+				<li>snapshots of larger code projects that are copied into the code library (for example: PISCES). We copy this code into the library
+				so that we can search one location for code. If you find something useful, you can then go find that code's primary location for the most
+				up-to-date code.</li>
+			</ol>
+			
+			<p>All code should be placed in its own folder with a descriptive name (even if that's just the name you've given you script).
+			If it is just a quick snapshot of code you work on elsewhere, please put _snapshot at the end of the folder name and a file
+			inside the folder indicating where the main code is located.</p>
+			
+			<p>Select users have been given access to create files and modify files in the folder (all TS-02 users can read the folder).
+			If you or someone else need access to modify code or add code, let Nick Santos (nrsantos@ucd) know.</p>
+			
+			<p>Finally, if you are modifying existing code that you didn't initially create, it's good practice to let the person who created that code know,
+			or to "fork" the code - to copy it, rename it as a new code project in it's own folder, then make your changes with a note that the code extends 
+			the original code located in --location--. We do this to make sure that we aren't adding conflicting changes and so that if someone
+			goes to run code they built, they don't find it broken or doing unexpected things.</p>
+		
+	<h2><a name="remote"></a>Accessing Remotely or Copying to Your Computer</h2>
+		<h3>Bitbucket</h3>
+		<p>You can access this repository remotely via BitBucket, which is used for version control (see the next section) at
+		<a href="https://bitbucket.org/UltraAyla/sierra-code-library" target="_blank">https://bitbucket.org/UltraAyla/sierra-code-library</a>.</p>
+		
+		<p>You can view software there, but you will need to "pull" a copy of the code to your local computer to use it from there.</p>
+		
+		<p>You can also maintain a copy of the code library on your computer if you frequently work remotely. It is recommended that
+		rather than copying the folder manually that you use <a href="http://tortoisehg.bitbucket.org/" target="_blank">TortoiseHg</a> to pull a copy of the library - that way, when changes are made,
+		you can click a button to receive them, then update your copy. Ask Nick for help.</p>
+		
+		<p><em>This site will have the most up-to-date copies of the code</em></p>
+		
+		<h3>hydra.ucdavis.edu</h3>
+		<p>Hyrda <a href="http://hydra.ucdavis.edu" target="_blank">http://hydra.ucdavis.edu</a> has a code library that contains snapshots
+		of some scripts that may be useful utilities. This code may not be the most up-to-date, but it will likely fit many uses of code.</p>
+		
 	<h2><a name="versioncontrol">Version Control</a></h2>
-	
-	What is version control (wikipedia)
-	Reading up on using version control (VC by example)
-	Nick is managing
+		<p>Code in the repository is versioned via software called <a href="http://mercurial.selenic.com" target="_blank">Mercurial</a> (or Hg for short).
+		Nick Santos maintains the repository of this code, and mostly you don't need to do anything differently as a result.
+		What it means though is that changes are tracked, we can revert to earlier versions, note differences between versions,
+		and de-facto back up the the code to our offsite repositories.</p>
 		
+		<p>Using a version control system also allows us to maintain copies on other computers that can be synchronized. See the previous section
+		under "Bitbucket" for more details.</p>
 	
+		<p>If you would like to know more about version control, see <a href="http://en.wikipedia.org/wiki/Revision_control" target="_blank">the
+		Wikipedia entry</a>. If you would like to learn how to use version control (and Hg in particular), see the excellent, free online book
+		<a href="http://www.ericsink.com/vcbe/" target="_blank">Version Control by Example.</a>
+	
+		<p>Nick Santos is the manager of the version control system.</p>
+			
+	<h2><a name="questions"></a>Questions?</h2>
+		<p>Direct questions to Nick Santos - nrsantos@ucd.</p>
 	
 </body>
 </html>
