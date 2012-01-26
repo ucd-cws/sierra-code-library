@@ -1,0 +1,2 @@
+This script takes input points with a population column and finds how many census tracts (immediately nearby and "touching" with a buffer) are required
+to make up that population. It was used for determining approximate service area for wells in the nitrates project.
