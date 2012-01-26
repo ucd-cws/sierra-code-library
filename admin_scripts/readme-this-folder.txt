@@ -1,0 +1,2 @@
+This folder is for scripts that don't necessarily process data or aren't for a project - they're just useful at outputting information. The kind of code you aren't looking
+for a sample of, but might just want to run a few times yourself.
