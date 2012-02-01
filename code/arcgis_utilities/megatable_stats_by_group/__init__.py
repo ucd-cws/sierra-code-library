@@ -19,9 +19,9 @@ except:
 	raise
 
 try:
-	import scipy
+	import numpy
 except:
-	print "Your Python installation must have a version of scipy installed"
+	print "Your Python installation must have a version of numpy installed"
 	raise
 
 class cl_table:
@@ -125,7 +125,7 @@ def load_and_process_data(tables):
 					t_row_data.append(row.getValue(col))
 				group.data.append(t_row_data)
 				
-				t_sci_array = scipy.array(t_row_data)
+				t_sci_array = numpy.array(t_row_data)
 				#arcpy.AddMessage("Mean: [%s] , Std: [%s] " % (t_sci_array.mean(),t_sci_array.std()))
 				row.setValue(group.mean_col,t_sci_array.mean())
 				row.setValue(group.std_col,t_sci_array.std())
