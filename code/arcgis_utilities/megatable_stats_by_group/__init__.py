@@ -122,7 +122,10 @@ def load_and_process_data(tables):
 			for row in l_curs:
 				t_row_data = []
 				for col in group.columns:
-					t_row_data.append(row.getValue(col))
+					t_val = float(row.getValue(col))
+					if t_val is None: # make sure we have a number, or else numpy will choke
+						t_val = 0.0
+					t_row_data.append(t_val)
 				group.data.append(t_row_data)
 				
 				t_sci_array = numpy.array(t_row_data)
