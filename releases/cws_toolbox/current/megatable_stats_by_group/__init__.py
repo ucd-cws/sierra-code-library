@@ -109,6 +109,7 @@ def assign_columns_to_groups(tables):
 				
 def load_and_process_data(tables):						
 	for table in tables:
+		arcpy.AddMessage("Processing %s" % table.table)
 		for group in table.groups: # add the columns
 			group.col_name_base = "group_%s_%s" % (group.name,group.col_parts[0])
 			group.mean_col = "%s_mean" % group.col_name_base
@@ -122,10 +123,10 @@ def load_and_process_data(tables):
 			for row in l_curs:
 				t_row_data = []
 				for col in group.columns:
-					t_val = float(row.getValue(col))
+					t_val = row.getValue(col)
 					if t_val is None: # make sure we have a number, or else numpy will choke
 						t_val = 0.0
-					t_row_data.append(t_val)
+					t_row_data.append(float(t_val))
 				group.data.append(t_row_data)
 				
 				t_sci_array = numpy.array(t_row_data)
@@ -144,9 +145,9 @@ input_tables = input_tables_to_list(input_tables) # do some data conversion
 input_groups = arc_groups_to_lists(input_groups) # do some data conversion
 arcpy.AddMessage("Setting up data")
 all_tables = make_groups(input_tables,input_groups) # make the group objects for the tables and columns
-arcpy.AddMessage("Assigning Groups")
+arcpy.AddMessage("Assigning Columns to Groups")
 assign_columns_to_groups(all_tables) # load the columns from each table and assign columns to groups based upon names
 arcpy.AddMessage("Loading and processing data")
 load_and_process_data(all_tables)
 
-arcpy.AddMessage("Complete - the columns were added to the existing tables")
+arcpy.AddMessage("\nComplete - the columns were added to the existing tables\n") # extra newlines so it's clear
