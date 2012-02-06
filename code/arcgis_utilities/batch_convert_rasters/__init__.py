@@ -1,23 +1,14 @@
-import arcpy, os, sys
+import os, sys
+import arcpy
 
-l_dir = "" # set defaults
-coverage_flag = None
+inputs = arcpy.GetParameter(0)
 
-try:
-		l_dir = sys.argv[1] # get the directory to use
-		coverage_flag = sys.argv[2]
-except:
-		print "Arguments missing - that's ok, so long as you aren't trying to change input dirs or convert coverages - if you are, hit Ctrl+C and check what's going on\n\n"
-		pass # we don't actually care
+define_projection_flag = arcpy.GetParameter(1)
+projection = arcpy.GetParameter(2)
+project_flag = arcpy.GetParameter(3)
+flip_flag = arcpy.GetParameter(4)
+coverage_flag = arcpy.GetParameter(5)
 
-if l_dir == None or l_dir == "": # if we don't have a directory - check for an empty string too because maybe someone just wanted to set the coverage flag too
-	import string
-	l_dir = string.replace(l_dir,'"','');
-	l_dir = string.replace(l_dir,"'",""); # replace any quotes wrapped around the arg - this might have been done for us...if not, there's probably a better way to do this, but I'm not looking it up right now
-	l_dir = os.getcwd() # if we weren't passed an argument, use the current folder
-	l_input = os.path.join(l_dir,"input")
-else: # we'll still need to set the inpu
-	l_input = l_dir
 	
 l_output = os.path.join(l_dir,"converted.gdb") #always set an output folder
 if not os.path.exists(l_output): # if it doesn't exist, make it
@@ -45,13 +36,13 @@ print "Processing %s Items" % len(dir_list)
 errors = False #set the flag to false - it'll be set to true if there was an error
 
 for item in dir_list: # for EVERY arc item in the directory
-        new_name = item[:-4] # slices off the extension - we'll be putting the rasters in gdbs
+	new_name = item[:-4] # slices off the extension - we'll be putting the rasters in gdbs
 	in_file = os.path.join(l_input,item) # make a compatible input string for the filename
 	in_file = in_file + coverage_extra # this makes all the os.path.join work a little futile...but it will append what we need to access coverages if that's set
 	out_file = os.path.join(l_output,new_name)
 	out_intermediate = os.path.join(l_temp,new_name)
 	projection = os.path.join(l_dir,"TealeAlbers.prj") # we want to project to TealeAlbers
-        
+
 	print "\nProcessing %s" % in_file
 	try:
 		try:
@@ -84,6 +75,6 @@ for item in dir_list: # for EVERY arc item in the directory
 
 print "\n\n"
 if errors == True:
-	print "Errors occurred during processing of at least one dataset - scroll up to find out"
+		print "Errors occurred during processing of at least one dataset - scroll up to find out"
 print "All files complete"
 raw_input("Press Enter to close...")
