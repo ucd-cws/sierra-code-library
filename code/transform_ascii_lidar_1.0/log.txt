@@ -1,0 +1,1 @@
+Processing file LWC20120216.ptsFile complete - located at E:\code_library\releases\transform_ascii_lidar_1.0\output_files\LWC20120216.pts
