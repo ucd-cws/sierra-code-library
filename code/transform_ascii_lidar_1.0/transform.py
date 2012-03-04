@@ -44,11 +44,14 @@ for cur_file in all_files:
 			if match is not None and match.group(0) is not None:
 				continue # we don't care about this line
 			else:
-			 	newmatch = re.search('^\d+\s+\d+\s+\d+\s+(\d+\s+)') # find the fourth group of numbers
-			 	if newmatch is not None and newmatch.group(0) is not None:
-			 		mm.track(newmatch.group(0))
-				else:
-					log("Problem matching line for intensity minmax")
+				try:
+				 	newmatch = re.search('^\d+\.?\d*\s+\d+\.?\d*\s+\d+\.?\d*\s+(-?\d+)\s+',line) # find the fourth group of numbers and include the sign
+				 	if newmatch is not None and newmatch.group(1) is not None:
+				 		mm.track(newmatch.group(1))
+					else:
+						log("Problem matching line for intensity minmax")
+				except:
+					log("Problem reading and scaling intensity")
 				output.write("%s" % line)
 	except:
 		log("Couldn't read or write data - skipping file")

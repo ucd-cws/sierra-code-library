@@ -39,6 +39,6 @@ class min_max():
 				try:
 					item = float(item)
 				except:
-					raise TypeError("Couldn't coerce into int or float - we're not going to order a string for you!")
+					raise TypeError("Couldn't coerce '%s' into int or float - we're not going to order a string for you!" % item)
 		
 		return item
