@@ -63,6 +63,13 @@ for item in dir_list: # for EVERY arc item in the directory
 		except:
 			print "Couldn't project"
 			raise #let it get caught above so it gets skipped and has a stack trace printed
+		
+		try:
+			print "Deleting temporary file" # save the disk space
+			arcpy.Delete_management(out_intermediate)
+		except:
+			print "Couldn't delete"
+			
 	except: # well crap, we hosed it somewhere
 		errors = True
 		import traceback

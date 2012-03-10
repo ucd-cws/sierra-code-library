@@ -53,7 +53,7 @@ def write(log_string = None, level="log"): # levels are "log", "warning", "debug
 		log_string = "ERROR: %s" % log_string
 	
 	if arc_script is False:
-		if not (level == "debug"): # we don't print debug info
+		if not (level == "debug" or level == "store"): # we don't print debug info
 			print log_string
 	else:
 		if level == "warning":
