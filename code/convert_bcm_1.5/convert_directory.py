@@ -108,6 +108,7 @@ log("\n\nBegan processing")
 
 if not os.path.exists(config_parent_folder):
 	file_failed(config_parent_folder,"config_parent_folder is undefined or does not exist")
+	sys.exit(1)
 
 user_delete = raw_input("Delete input data upon conversion (y/n?) - default, no: ")
 
