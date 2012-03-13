@@ -9,15 +9,15 @@ run_dir = os.getcwd()
 
 # Configuration settings - feel free to change them, but you should also probably know what you're doing here.
 # The code may not check for exceptions related to bad settings here
-config_parent_folder = r""
+config_parent_folder = r"E:\CEC\bcm_data\compressed_raw"
 config_network = False # set to true if the .asc files (as set in config_parent_folder) are on a network location. The script will then take steps to minimize network time to speed things up
-config_vars = ["run","ppt","pck","tmin","tmax","rch","aet","cwd","pet","snow","subl","stor"]
-config_years = range(2000,2150)
+config_vars = ["run","rch","ppt","pck","tmin","tmax","aet","cwd","pet","snow","subl","stor"]
+config_years = range(1890,2150)
 config_temp_dir = os.path.join(run_dir,"temp")
 arcpy.env.overwriteOutput = True # make arcpy overwrite existing datasets instead of raising an exception
 
 config_projection = os.path.join(run_dir,"TealeAlbers.prj") # we want to project to TealeAlbers
-
+config_bcm_prj = "PROJCS['NAD_1983_Albers',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Albers'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',29.5],PARAMETER['Standard_Parallel_2',45.5],PARAMETER['Latitude_Of_Origin',23.0],UNIT['Meter',1.0]]"
 
 # log file names
 log_out_file = open(os.path.join(os.getcwd(),"log.txt"),'w')
@@ -25,9 +25,9 @@ error_log = open(os.path.join(os.getcwd(),"errors.txt"),'w')
 
 # setup variables
 flag_errors = False #set the flag to false - it'll be set to true if there was an error
+
 temp = os.path.join(run_dir,"temp.gdb")
 months = ("jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec",)
-
 
 # basic functions
 def log(msg):
@@ -75,10 +75,11 @@ def year_in_range(filename):
 			log( "Filter not found - skipping table" )
 			return False # go to the next table
 
-def check_gdb(gdb_name):
+def check_gdb(folder,gdb_name):
 	if not arcpy.Exists(gdb_name):
 		try:
-			arcpy.CreateFileGDB_management(gdb_name)
+			log("Creating %s" % gdb_name)
+			arcpy.CreateFileGDB_management(folder,gdb_name)
 		except:
 			file_failed(gdb_name,"Unable to create output geodatabase, and it doesn't exist - skipping entire variable!")
 			return False
@@ -102,17 +103,26 @@ def standardize_name(var,filename):
 		
 	else:
 		return filename
-log("\n\n\n\nBegan run")
+
+log("\n\nBegan processing")
+
+if not os.path.exists(config_parent_folder):
+	file_failed(config_parent_folder,"config_parent_folder is undefined or does not exist")
 
 for var in config_vars:
 	
+	log("Switching to variable %s" % var)
+	
 	l_output_gdb = os.path.join(run_dir,"converted_%s.gdb" % var) #always set an output folder
 	
-	if check_gdb(l_output_gdb) is False: # tries to make it and returns False on failure
+	if check_gdb(run_dir,"converted_%s.gdb" % var) is False: # tries to make it and returns False on failure
 		continue
 	
 	l_input = os.path.join(config_parent_folder,var)
 		
+	if not os.path.exists(l_input):
+		file_failed(l_input,"input directory doesn't exist")	
+	
 	log("Looking for data in %s" % l_input)
 	arcpy.env.workspace = l_input # set the workspace for arcpy to look in
 	
@@ -137,6 +147,10 @@ for var in config_vars:
 		
 		log( "\nProcessing %s" % in_file)
 		
+		if arcpy.Exists(out_file): # resume support if it crashes or needs to be stopped
+			log("Skipping file - %s already exists" % out_file)
+			continue
+		
 		if config_network is True:
 			in_file = network_copy(in_file) # copy the file to local and replace in_file with the location
 			if in_file is None:
@@ -151,13 +165,13 @@ for var in config_vars:
 				raise #let it get caught above so it gets skipped and has a stack trace printed
 			try:
 				log( "Defining projection")
-				arcpy.DefineProjection_management(out_intermediate, os.path.join(l_dir,"PROJCS['NAD_1983_Albers',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Albers'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',29.5],PARAMETER['Standard_Parallel_2',45.5],PARAMETER['Latitude_Of_Origin',23.0],UNIT['Meter',1.0]]"))
+				arcpy.DefineProjection_management(out_intermediate, config_bcm_prj)
 			except:
 				log( "Couldn't define projection")
 				raise #let it get caught above so it gets skipped and has a stack trace printed
 			try:
 				log( "Projecting")
-				arcpy.ProjectRaster_management(out_intermediate,out_file,projection)
+				arcpy.ProjectRaster_management(out_intermediate,out_file,config_projection)
 			except:
 				log( "Couldn't project")
 				raise #let it get caught above so it gets skipped and has a stack trace printed
