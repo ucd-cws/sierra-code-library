@@ -33,10 +33,11 @@ def index_rows(dataset,column):
 	
 	rows = []
 	for i in range(int(curs_len)):
-		
+		''' we're using this method because we wanted everything to stay open and copied, but it probably doesn't work due to cursor structure - it should be switched to for row in cursor'''
+				
 		rows.append(cursor.next())
 		
-		out_row = simple()
+		out_row = simple() # copy all of the fields to a blank object except the ones we don't care about
 		for field in desc.fields:
 			if field.editable and (field.name != "Shape") and (field.name != "Shape_Area"):
 				#print field.name
@@ -44,10 +45,10 @@ def index_rows(dataset,column):
 					out_row.__dict__[field.name] = rows[i].getValue(field.name)
 				except:
 					print "error"
-		#print rows[i]
-		#print rows[i].shape
-		out_row.__dict__['shape'] = copy.copy(rows[i].shape)
-		#print "%s,%s,%s,%s" % (rows[i].shape.extent.YMax,rows[i].shape.extent.XMax,rows[i].shape.extent.YMin,rows[i].shape.extent.XMin)
+		# store the OID field in a special spot so we can come grab the shape LATER - it's slow, but the only way to do this that I can think of
+		# because if we want to index it and retrieve it, the only way to access a particular shape is by reopening it with SQL on the OID field.
+		out_row.OIDFieldVal = rows[i].getValue(desc.OIDFieldName)
+		
 		key_val = str(rows[i].getValue(column))
 		if not row_index.has_key(key_val):
 			row_index[key_val] = []
@@ -56,7 +57,8 @@ def index_rows(dataset,column):
 		
 		if i % 500 == 0:
 			print i
-		
+	
+	del desc
 	return cursor # keep it alive
 
 def split_features(data):
@@ -102,10 +104,15 @@ def split_features(data):
 				continue
 		
 		try:
-			#print type(real_row.shape)
-			print "%s,%s,%s,%s" % (real_row.shape.extent.YMax,real_row.shape.extent.XMax,real_row.shape.extent.YMin,real_row.shape.extent.XMin)
-			print real_row.shape
-			t_row.shape = real_row.shape # copy the shape over explicitly
+			
+			# open the cursor just to get the shape of a particular item. This is slow, but the best way I can think of around the indexing problem
+			temp = arcpy.SearchCursor(data,"%s = %s" % (desc.OIDFieldName,real_row.OIDFieldVal))
+			row = temp.next()
+			
+			t_row.shape = row.shape # copy the shape over explicitly
+			
+			del row
+			del temp
 		except:
 			raise
 			print "error copying shape"
