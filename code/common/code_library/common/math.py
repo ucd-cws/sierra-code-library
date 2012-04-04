@@ -5,9 +5,9 @@ Created on Mar 3, 2012
 '''
 
 class min_max():
-	def __init__(self):
-		self.min = 0
-		self.max = 0
+	def __init__(self, tmin = 0, tmax = 0):
+		self.min = tmin
+		self.max = tmax
 		self.n = 0
 
 	def track(self,item):
@@ -21,13 +21,19 @@ class min_max():
 			
 		self.n += 1
 	
-	def report(self):
-		print "Min: %s, Max: %s, n: %s" % (self.min,self.max,self.n)
+	def report(self, return_text = False):
+		self_report = "Min: %s, Max: %s, n: %s" % (self.min,self.max,self.n)
+		
+		if return_text:
+			return self_report
+		else:
+			print self_report
 	
 	def stretch(self,s_value,low = 0,high = 1):
 		s_value = self.mm_coerce(s_value)
+
+		new_val = (( (float(s_value) - float(self.min))/(float(self.max) - float(self.min))) * (float(high)-float(low)) + float(low)) # conduct adjustment
 			
-		new_val = (( (s_value - self.min)/(self.max - self.min)) * (high-low) + low) # conduct adjustment
 		return new_val
 	
 	def mm_coerce(self,item):
