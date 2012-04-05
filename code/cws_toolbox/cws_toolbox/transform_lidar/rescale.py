@@ -34,7 +34,7 @@ class process_wrapper:
 			
 		for line in data:
 			try:
-				newmatch = re.search('(^\d+\.?\d*\s+\d+\.?\d*\s+\d+\.?\d*\s+)(-?\d+)(\s+.*)',line) # find the fourth group of numbers and include the sign
+				newmatch = re.search('(^-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s+)(-?\d+)(\s+.*)',line) # find the fourth group of numbers and include the sign
 				if newmatch is None or newmatch.group(1) is None:
 					log("Problem matching line for intensity minmax - point dropped for line %s" % line)
 					continue
