@@ -3,8 +3,6 @@ import sys
 
 import arcpy
 
-import copy
-
 input_dataset = arcpy.GetParameterAsText(0)
 output_dataset_folder = arcpy.GetParameterAsText(1)
 output_filename = arcpy.GetParameterAsText(2)
@@ -14,6 +12,8 @@ value_column = arcpy.GetParameterAsText(4)
 output_dataset = os.path.join(output_dataset_folder,output_filename)
 
 filter_type = "filter_max_val" # filter_max_val = largest value in column
+
+OIDField = None
 
 row_index = {}
 
@@ -38,16 +38,18 @@ def index_rows(dataset,column):
 		rows.append(cursor.next())
 		
 		out_row = simple() # copy all of the fields to a blank object except the ones we don't care about
-		for field in desc.fields:
-			if field.editable and (field.name != "Shape") and (field.name != "Shape_Area"):
-				#print field.name
-				try:
-					out_row.__dict__[field.name] = rows[i].getValue(field.name)
-				except:
-					print "error"
+		out_row.__dict__[filter_column] = rows[i].getValue(filter_column)
+		out_row.__dict__[value_column] = rows[i].getValue(value_column)
+		#for field in desc.fields:
+		#	try:
+		#		out_row.__dict__[field.name] = rows[i].getValue(field.name)
+		#	except:
+		#		arcpy.AddError("error")
 		# store the OID field in a special spot so we can come grab the shape LATER - it's slow, but the only way to do this that I can think of
 		# because if we want to index it and retrieve it, the only way to access a particular shape is by reopening it with SQL on the OID field.
 		out_row.OIDFieldVal = rows[i].getValue(desc.OIDFieldName)
+		global OIDField
+		OIDField = desc.OIDFieldName
 		
 		key_val = str(rows[i].getValue(column))
 		if not row_index.has_key(key_val):
@@ -56,7 +58,7 @@ def index_rows(dataset,column):
 		row_index[key_val].append(out_row)
 		
 		if i % 500 == 0:
-			print i
+			arcpy.AddMessage(i)
 	
 	del desc
 	return cursor # keep it alive
@@ -73,56 +75,45 @@ def split_features(data):
 	if arcpy.Exists(output_dataset):
 		arcpy.Delete_management(output_dataset)
 	
-	arcpy.CreateFeatureclass_management(output_dataset_folder,output_filename,desc.shapeType,data,"DISABLED","DISABLED",desc.spatialReference)
-	ins_curs = arcpy.InsertCursor(output_dataset)
+	arcpy.CopyFeatures_management(feature_layer,os.path.join(output_dataset_folder,output_filename))#,desc.shapeType,data,"DISABLED","DISABLED",desc.spatialReference)
+	upd_curs = arcpy.UpdateCursor(output_dataset)
 	
-	tid = 0
 	global row_index
 	filter_func = globals()[filter_type]
-	
-	for feature in all_features:
 
+	row_ids = []
+	
+	arcpy.AddMessage("filtering...")
+	for feature in all_features:
+		
 		if not row_index.has_key(feature.getValue(filter_column)): # if we don't have a key for this row anymore, skip it - it was already processed
+			arcpy.AddMessage("Dropping a row with duplicate key %s" % feature.getValue(filter_column))
 			continue
 		
 		real_row = filter_func(row_index[str(feature.getValue(filter_column))]) # real_row is the best row that corresponds to this particular row's id
 
 		if real_row is None:
+			arcpy.AddMessage("Dropping a row with duplicate key %s" % feature.getValue(filter_column))
 		#	arcpy.AddError("Problem: a value in the filter column returns 0 rows. Should not be possible...")
 			continue
-		
-		# copy this item into it
-		print "[%s],[%s]" % (feature.getValue(filter_column),real_row.__dict__[filter_column])
-		
-		t_row = ins_curs.newRow()
-		for field in desc.fields: # copy each field
-			try:
-				if field.editable and (field.name != "Shape") and (field.name != "Shape_Area"): # only copy the non-system fields
-					t_row.setValue(field.name,real_row.__dict__[field.name])
-			except:
-				arcpy.AddWarning("skipping col %s - can't copy" % field.name)
-				continue
-		
-		try:
-			
-			# open the cursor just to get the shape of a particular item. This is slow, but the best way I can think of around the indexing problem
-			temp = arcpy.SearchCursor(data,"%s = %s" % (desc.OIDFieldName,real_row.OIDFieldVal))
-			row = temp.next()
-			
-			t_row.shape = row.shape # copy the shape over explicitly
-			
-			del row
-			del temp
-		except:
-			raise
-			print "error copying shape"
-		
-
-		ins_curs.insertRow(t_row)
-		row_index[feature.getValue(filter_column)] = None # zero it out so we don't use this set of items again
 	
-	del ins_curs # close the cursor	
+		row_ids.append(real_row.OIDFieldVal)
+		# add key col to array to
+		row_index[feature.getValue(filter_column)] = None # zero it out so we don't use this set of items again
+		
+	arcpy.AddMessage("writing new features")
+	i = 0
+	for row in upd_curs: # delete rows where OID not in array
+		i+= 1
+		if row.getValue(OIDField) not in row_ids:
+			upd_curs.deleteRow(row)
+			
+		if i % 500 == 0:
+			arcpy.AddMessage(i)
+		
+	del upd_curs # close the cursor	
 	del desc # kill the describe object
+	
 	arcpy.Delete_management(feature_layer) # delete the feature layer
 	
 	return output_dataset
@@ -133,30 +124,48 @@ def filter_max_val(in_list):
 	#print "%s rows" % len(in_list)
 	
 	if in_list is None:
+		#arcpy.AddMessage("list undefined")
 		return None
 	
 	if len(in_list) == 1: # probably a common case - if we only have one item, return that item
+		#print "selected single item"
+		print in_list[0].__dict__[value_column]
 		return in_list[0]
 	
 	if len(in_list) == 0:
+		#arcpy.AddMessage("Zero-length list")
 		return None
 	
 	max_val = 0
 	max_row = None
+	
 	for row in in_list:
-		
+		print row
 		if row is None:
+			#print "row is None"
 			continue
 			
+		try:
+			if not row.__dict__[value_column]:
+				#print "row badly indexed"
+				continue
+		except:
+			#print "row badly indexed"
+			continue	
+
+		#print "value: %s, max_val: %s" %(row.__dict__[value_column],max_val)
 		if row.__dict__[value_column] > max_val:
-			#print "[%s][%s]" % (row.getValue(filter_column),row.getValue(value_column))
+			#print "it's bigger!"
+			
 			max_val = row.__dict__[value_column]
 			max_row = row
+	print max_val
+	print max_row
 	return max_row # it'll be the largest one
 	
-print "indexing rows"
+arcpy.AddMessage("indexing rows")
 g_curs = index_rows(input_dataset,filter_column)
-print "writing new features"
+arcpy.AddMessage("writing new features")
 new_dataset = split_features(input_dataset)
 
 f_layer_name = "deduped_features"
