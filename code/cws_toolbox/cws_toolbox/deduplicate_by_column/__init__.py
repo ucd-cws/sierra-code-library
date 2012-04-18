@@ -168,7 +168,6 @@ g_curs = index_rows(input_dataset,filter_column)
 arcpy.AddMessage("writing new features")
 new_dataset = split_features(input_dataset)
 
-f_layer_name = "deduped_features"
-arcpy.MakeFeatureLayer_management(new_dataset,f_layer_name)
+arcpy.MakeFeatureLayer_management(new_dataset,output_filename)
 
-arcpy.SetParameterAsText(5,f_layer_name)
+arcpy.SetParameterAsText(5,output_filename)
