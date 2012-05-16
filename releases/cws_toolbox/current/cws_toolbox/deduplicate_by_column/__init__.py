@@ -4,10 +4,11 @@ import sys
 import arcpy
 
 input_dataset = arcpy.GetParameterAsText(0)
-output_dataset_folder = arcpy.GetParameterAsText(1)
-output_filename = arcpy.GetParameterAsText(2)
-filter_column = arcpy.GetParameterAsText(3)
-value_column = arcpy.GetParameterAsText(4)
+input_table = arcpy.GetParameterAsText(1)
+output_dataset_folder = arcpy.GetParameterAsText(2)
+output_filename = arcpy.GetParameterAsText(3)
+filter_column = arcpy.GetParameterAsText(4)
+value_column = arcpy.GetParameterAsText(5)
 
 output_dataset = os.path.join(output_dataset_folder,output_filename)
 
@@ -18,6 +19,11 @@ OIDField = None
 row_index = {}
 
 arcpy.overwriteOutput = True
+
+is_table = False
+if input_table:
+	input_dataset = input_table
+	is_table = True
 
 class simple():
 	def __init__(self):
@@ -69,13 +75,13 @@ def split_features(data):
 
 	all_features = arcpy.SearchCursor(data)		
 	
-	feature_layer = "t_f_layer"
-	arcpy.MakeFeatureLayer_management(data,feature_layer) # make it a feature layer so we can use it as a template
+	#feature_layer = "t_f_layer"
+	#arcpy.MakeFeatureLayer_management(data,feature_layer) # make it a feature layer so we can use it as a template
 	
 	if arcpy.Exists(output_dataset):
 		arcpy.Delete_management(output_dataset)
 	
-	arcpy.CopyFeatures_management(feature_layer,os.path.join(output_dataset_folder,output_filename))#,desc.shapeType,data,"DISABLED","DISABLED",desc.spatialReference)
+	arcpy.Copy_management(data,os.path.join(output_dataset_folder,output_filename))#,desc.shapeType,data,"DISABLED","DISABLED",desc.spatialReference)
 	upd_curs = arcpy.UpdateCursor(output_dataset)
 	
 	global row_index
@@ -114,7 +120,7 @@ def split_features(data):
 	del upd_curs # close the cursor	
 	del desc # kill the describe object
 	
-	arcpy.Delete_management(feature_layer) # delete the feature layer
+	#arcpy.Delete_management(feature_layer) # delete the feature layer
 	
 	return output_dataset
 	
@@ -168,6 +174,7 @@ g_curs = index_rows(input_dataset,filter_column)
 arcpy.AddMessage("writing new features")
 new_dataset = split_features(input_dataset)
 
-arcpy.MakeFeatureLayer_management(new_dataset,output_filename)
+if not is_table:
+	arcpy.MakeFeatureLayer_management(new_dataset,output_filename)
+	arcpy.SetParameterAsText(6,output_filename)
 
-arcpy.SetParameterAsText(5,output_filename)
