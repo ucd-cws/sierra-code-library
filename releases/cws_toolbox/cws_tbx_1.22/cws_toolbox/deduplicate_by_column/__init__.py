@@ -4,7 +4,7 @@ import sys
 import arcpy
 
 input_dataset = arcpy.GetParameterAsText(0)
-input_table = arcpy.GetParameterAsText(1)
+is_table = arcpy.GetParameterAsText(1)
 output_dataset_folder = arcpy.GetParameterAsText(2)
 output_filename = arcpy.GetParameterAsText(3)
 filter_column = arcpy.GetParameterAsText(4)
@@ -19,11 +19,6 @@ OIDField = None
 row_index = {}
 
 arcpy.overwriteOutput = True
-
-is_table = False
-if input_table:
-	input_dataset = input_table
-	is_table = True
 
 class simple():
 	def __init__(self):
