@@ -9,3 +9,7 @@ it will contain a table named megatableXX
 See the configuration variables at the top of the script for input and output configuration. By default, it only joins field names found in a list of fields in the config
 section. These fields are prefixed by the table's original name in the final output. If you want to join all fields, regardless of name, contact Nick Santos. This script
 is not currently designed to do that, but could probably do it pretty easily.
+
+2.0 added filters
+3.0 added the ability to process multiple distinct series
+4.0 added CSV output
