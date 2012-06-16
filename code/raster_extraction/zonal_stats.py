@@ -17,7 +17,7 @@ config_data_dir = os.path.join(os.getcwd(),"..","data_futures")
 inZoneData = os.path.join(os.getcwd(),"snmeadows_area.gdb","snmeadows_hucs")
 zoneField = "HUC_12"
 
-
+def run_zonal(zones,):
 
 
 
