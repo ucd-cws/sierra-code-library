@@ -51,7 +51,6 @@ def run_zonal(zones_file,gdbs,dataset_name):
 				continue
 
 
-
 def zonal_stats(zones,filename,raster,output_location,zone_field):
 
 	try:

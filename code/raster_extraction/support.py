@@ -61,6 +61,8 @@ def setup(input_dataset):
 		log.error("Input dataset does not exist. Exiting")
 		sys.exit()
 
+def split_items():
+
 def run_files(filenames,datasets):
 	'''splits the file into pieces and runs each gdb for it'''
 	
