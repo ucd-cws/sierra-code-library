@@ -37,7 +37,7 @@ def write(log_string = None,screen = False, level="log"): # levels are "log", "w
 	try:
 		log_cursor.execute('''insert into log (message,message_date,message_level,run_id) values (?,datetime('now'),?,?)''',(log_string,level,run_id))
 	except:
-		print "Couldn't insert record into log! Printing..."
+		#print "Couldn't insert record into log! Printing..."
 		if screen is not True and level != "warning" and level != "error": # in those cases, we already printed it...
 			print log_string
 

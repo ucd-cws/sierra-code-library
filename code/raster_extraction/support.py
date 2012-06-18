@@ -5,20 +5,27 @@ import arcpy
 
 import log
 import config
+import zonal_stats
 
 class raster_dataset:
 	def __init__(self, name = None, folder = None):
+		log.write("Setting up dataset %s" % name)
 		self.name = name
 		self.folder = folder
 		self.gdbs = []
 				
-		temp_gdbs = arcpy.ListWorkspaces(self.folder)
+		arcpy.env.workspace = self.folder
+		temp_gdbs = arcpy.ListWorkspaces()
 		for db in temp_gdbs:
 			self.gdbs.append(raster_gdb(db))
 		
 class raster_gdb:
 	def __init__(self,path):
-		self.rasters = arcpy.ListRasters(path)
+		log.write("Reading gdb at %s" % path,True)
+		arcpy.env.workspace = path
+		self.rasters = arcpy.ListRasters()
+		self.zonal_stats_files = []
+		self.name = os.path.splitext(os.path.split(path)[1])[0]
 		self.path = path
 
 def check_gdb(folder,gdb_name):
@@ -41,24 +48,24 @@ def file_failed(filename,msg):
 	
 	log.write(msg,True)
 	
-def setup():
+def setup(input_dataset):
 	
 	arcpy.CheckOutExtension("Spatial")
 	
 	for ds in config.current_datasets.keys():
-		log.write("Setting up dataset %s" % ds)
-		tds = raster_dataset(ds,config.current_datasets[ds])
+		tds = raster_dataset(ds,os.path.join(config.data_folder,config.current_datasets[ds]))
 		config.datasets.append(tds)
 		config.datasets_index[ds] = tds
 		
-	if not arcpy.Exists(config.input_dataset):
+	if not arcpy.Exists(input_dataset):
 		log.error("Input dataset does not exist. Exiting")
 		sys.exit()
 
-def run_file(filename):
+def run_files(filenames,datasets):
 	'''splits the file into pieces and runs each gdb for it'''
 	
-	file_db = check_gdb(config.run_dir, "temp.gdb")
+	#file_db = check_gdb(config.run_dir, "temp.gdb")
+	for filename in filenames:
+		for dataset in datasets:
+			zonal_stats.run_zonal(filename,dataset.gdbs,dataset.name)
 	
-	
-	pass
