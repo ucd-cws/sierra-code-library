@@ -16,8 +16,7 @@ import log
 
 #inZoneData = os.path.join(os.getcwd(),"snmeadows_area.gdb","snmeadows_hucs")
 
-
-def run_zonal(zones_file,gdbs,dataset_name):
+def run_zonal(zones_file,gdbs,dataset_name,unique_filename,feature_string = None):
 	var_num = 0
 	for gdb in gdbs:
 		var_num += 1
@@ -29,13 +28,16 @@ def run_zonal(zones_file,gdbs,dataset_name):
 
 		filename = os.path.splitext(os.path.split(zones_file)[1])[0]
 
-		out_workspace = os.path.join(config.output_folder,"zonal_%s_%s.gdb" % (filename,gdb.name))
-		if support.check_gdb(config.output_folder,"zonal_%s_%s.gdb" % (filename,gdb.name)) is False:
+		out_workspace = os.path.join(config.output_folder,"zonal_%s_%s.gdb" % (unique_filename,gdb.name))
+		if support.check_gdb(config.output_folder,"zonal_%s_%s.gdb" % (unique_filename,gdb.name)) is False:
 			log.error("setting up db for %s failed" % out_workspace)
 			continue
 		
 		for raster in gdb.rasters:
-			log.write("\nvar %s -- %s already processed" % (var_num,num_processed),True)
+			if feature_string:
+				log.write("\n%s; var %s -- %s already processed" % (feature_string,var_num,num_processed),True)
+			else:
+				log.write("\nvar %s -- %s already processed" % (var_num,num_processed),True)
 			num_processed += 1
 		
 			log.write("processing %s" % raster,True)
@@ -44,7 +46,7 @@ def run_zonal(zones_file,gdbs,dataset_name):
 				outfile = zonal_stats(zones_file,filename,os.path.join(gdb.path,raster),out_workspace,config.zone_field)
 				
 				if outfile:
-					gdb.rasters.zonal_stats_files.append(outfile)
+					gdb.zonal_stats_files.append(outfile)
 			except:
 				raise
 				log.error("Failed to run zonal stats on raster %s in gdb %s" % (raster,gdb.name))
@@ -54,9 +56,9 @@ def run_zonal(zones_file,gdbs,dataset_name):
 def zonal_stats(zones,filename,raster,output_location,zone_field):
 
 	try:
-
 		# Set local variables
-		out_table = os.path.join(output_location,"%s_%s" % (filename,raster))
+		raster_name = os.path.splitext(os.path.split(raster)[1])[0]
+		out_table = os.path.join(output_location,"%s_%s" % (filename,raster_name))
 
 		try:
 			if arcpy.Exists(out_table):

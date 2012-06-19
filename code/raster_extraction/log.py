@@ -4,16 +4,21 @@ Created on Jan 23, 2012
 
 @author: nicksantos
 '''
-
+import os
 import sqlite3
 
 log_connection = None
 log_cursor = None
 run_id = None
 
-def init_log():
+log_db_name = "log_db.sqlite3"
+
+def init_log(run_dir):
 	#log_create()
-	log_connect = sqlite3.connect("log_db.sqlite3")
+	if not os.path.exists(os.path.join(run_dir,log_db_name)):
+		log_create(run_dir,log_db_name)
+	
+	log_connect = sqlite3.connect(log_db_name)
 	
 	global log_connection
 	log_connection = log_connect
@@ -37,7 +42,7 @@ def write(log_string = None,screen = False, level="log"): # levels are "log", "w
 	try:
 		log_cursor.execute('''insert into log (message,message_date,message_level,run_id) values (?,datetime('now'),?,?)''',(log_string,level,run_id))
 	except:
-		#print "Couldn't insert record into log! Printing..."
+		print "Couldn't insert record into log! Printing..."
 		if screen is not True and level != "warning" and level != "error": # in those cases, we already printed it...
 			print log_string
 
@@ -53,8 +58,8 @@ def close_log():
 	log_cursor.close()
 	log_connection.close()
 
-def log_create():
-	log_connect = sqlite3.connect("log_db.sqlite3")
+def log_create(run_dir,db_name):
+	log_connect = sqlite3.connect(os.path.join(run_dir,db_name))
 	log_cursor = log_connect.cursor()
 	log_cursor.execute('''create table log (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER, message_date TEXT, message TEXT, message_level TEXT)''')
 	log_cursor.execute('''create table runs (id INTEGER PRIMARY KEY AUTOINCREMENT, run_date TEXT)''')
