@@ -147,16 +147,17 @@ def run_files(filenames,datasets):
 		num_features = len(all_features)
 		
 		filename_unique = os.path.splitext(os.path.split(filename)[1])[0] # not so unique except that it's meant for creating a unique gdb for each zones/variable set
-		
-		feature_num = 0
-				
+						
 		for dataset in datasets:
 			
+			feature_num = 0	
 			for feature in all_features:
 				feature_num += 1
 				feature_string = "File %s of %s; feature %s of %s" % (file_num,num_files,feature_num,num_features)
 				
-				zonal_stats.run_zonal(feature,dataset.gdbs,dataset.name,filename_unique,feature_string)
+				tables = zonal_stats.run_zonal(feature,dataset.gdbs,dataset.name,filename_unique,feature_string)
+
+
 
 def run_join(filenames,datasets):
 	

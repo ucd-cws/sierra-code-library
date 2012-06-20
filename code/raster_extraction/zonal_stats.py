@@ -1,11 +1,14 @@
+import os
+
 import arcpy
 from arcpy import env
 from arcpy.sa import *
-import os
 
 import config
 import support
 import log
+import processify
+	
 
 #old_vars = ["rch","aet","cwd","pet","snow","subl","stor"]
 #all_vars = ["run","ppt","pck","tmax","tmin"]
@@ -17,7 +20,11 @@ import log
 #inZoneData = os.path.join(os.getcwd(),"snmeadows_area.gdb","snmeadows_hucs")
 
 def run_zonal(zones_file,gdbs,dataset_name,unique_filename,feature_string = None):
+	'''batches zonal stats across a set of rasters'''
+	
 	var_num = 0
+	
+	return_tables = [] # will become a list of lists
 	for gdb in gdbs:
 		var_num += 1
 		num_processed = 0   
@@ -33,6 +40,8 @@ def run_zonal(zones_file,gdbs,dataset_name,unique_filename,feature_string = None
 			log.error("setting up db for %s failed" % out_workspace)
 			continue
 		
+		file_list = []
+		
 		for raster in gdb.rasters:
 			if feature_string:
 				log.write("\n%s; var %s -- %s already processed" % (feature_string,var_num,num_processed),True)
@@ -46,13 +55,24 @@ def run_zonal(zones_file,gdbs,dataset_name,unique_filename,feature_string = None
 				outfile = zonal_stats(zones_file,filename,os.path.join(gdb.path,raster),out_workspace,config.zone_field)
 				
 				if outfile:
-					gdb.zonal_stats_files.append(outfile)
+					file_list.append(outfile)
 			except:
 				raise
 				log.error("Failed to run zonal stats on raster %s in gdb %s" % (raster,gdb.name))
 				continue
+		
+		return_tables.append(file_list)
 
 
+def multifile_zonal(files,filename,raster,zone_field,output_location,merge_flag = False):
+	# very broken
+	
+	results = []
+	for t_file in files:
+		results.append(zonal_stats(t_file,filename,os.path.join(gdb.path,raster),out_workspace,config.zone_field))
+		
+
+#@processify.processify
 def zonal_stats(zones,filename,raster,output_location,zone_field):
 
 	try:
@@ -68,8 +88,8 @@ def zonal_stats(zones,filename,raster,output_location,zone_field):
 			log.error("Couldn't test if it already exists...move along!")
 
 		try:
-			print out_table
-			outZSaT = ZonalStatisticsAsTable(zones, config.zone_field, raster, out_table, "DATA", "ALL")
+			log.write("Running Zonal",True)
+			outZSaT = ZonalStatisticsAsTable(zones, zone_field, raster, out_table, "DATA", "ALL")
 		except SystemExit:
 			log.error("System Exit returned from ZonalStatisticsAsTable")
 		except:
@@ -84,4 +104,4 @@ def zonal_stats(zones,filename,raster,output_location,zone_field):
 	except:
 		raise
 		log.error("Unhandled Exception in zonal_stats function")
-	
+

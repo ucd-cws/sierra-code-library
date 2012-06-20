@@ -7,6 +7,9 @@ import support
 
 run_dir = os.getcwd()
 
+# sets whether or not to run zonal stats in a subprocess
+use_subprocesses = True
+
 #temp_gdb = support.check_gdb(run_dir, "temp")
 
 data_folder = os.path.join(run_dir,"data")

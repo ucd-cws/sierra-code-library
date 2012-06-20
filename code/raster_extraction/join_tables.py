@@ -1,15 +1,10 @@
 import os, sys
+import csv
+import tempfile
 
 import arcpy
 
-import csv
-
 import log
-
-# these need to be reworked and declared as class values
-config_input_gdb = ""
-config_series = [range(1980,2001),range(2020,2041),range(2050,2071),range(2080,2101)]
-
 
 class join_data:
 	def __init__(self,db_location,join_field = "HUC_12",add_fields = ["MEAN"],tables = None,dbs = None):
@@ -22,6 +17,9 @@ class join_data:
 		self.add_fields = add_fields
 		self.tables = tables
 		self.dbs = dbs
+		
+		self.temp_folder = None
+		self.temp_gdb = None
 		
 		if not tables and not dbs:
 			raise ValueError("Both tables and dbs are undefined - can't set up join tables with no data")
@@ -166,35 +164,90 @@ class join_data:
 		del csvwriter
 		
 	def get_tables(self, db):
-			# Set environment settings
-			arcpy.env.workspace = db
-			
-			# List tables in db
-			tables = arcpy.ListTables()
+		# Set environment settings
+		arcpy.env.workspace = db
 		
-			total_number = len(tables)
-			log.write("%s tables left to process" % total_number,True)
-			
-			return tables	
+		# List tables in db
+		tables = arcpy.ListTables()
 	
+		total_number = len(tables)
+		log.write("%s tables left to process" % total_number,True)
+		
+		return tables	
+	
+	def pre_merge(self):
+		''' if the tables attribute contains a list of lists, then each list contains tables that should be merged again). We'll do that and replace the tables attribute with the merge results
+		so that the self.tables attribute contains the kinds of tables we'd expect.'''
+		
+		try:
+			final_tables = []
+			for table in self.tables:
+				if hasattr(table,"islower"): # essentially, "is it a string?" but done the proper way
+					final_tables.append(table)
+				else:
+					if hasattr(table,"index"): # but it's still a sequence
+						final_tables.append(self.merge(table)) # table is a list or other iterable, so we want to merge those items into one
+					else:
+						raise TypeError("Not a sequence of sequences or a sequence of strings")
+			self.tables = final_tables
+		except:
+			log.error("Incorrect syntax for premerge - likely an incorrect data structure was passed in. It must be either a list (or other iterable) of tables or a list of lists containing tables")
+			raise
+		
+	def merge(self,tables):
+		
+		merged_data = arcpy.CreateUniqueName("merged",self.get_temp_gdb())		
+		return arcpy.Merge_management(tables,merged_data)
+		
+	def check_temp(self):
+		if not self.temp_folder or not self.temp_gdb:
+			try:
+				self.temp_folder = tempfile.mkdtemp()
+				temp_gdb = os.path.join(self.temp_folder,"join_temp.gdb")
+				if arcpy.Exists(temp_gdb):
+					self.temp_gdb = temp_gdb
+				else: # doesn't exist
+					log.write("Creating %s" % temp_gdb,True)
+					arcpy.CreateFileGDB_management(self.temp_folder,"join_temp.gdb")
+					self.temp_gdb = temp_gdb
+			except:
+				return False
+		return True
+	
+	def get_temp_folder(self):
+		if self.check_temp():
+			return self.temp_folder
+		else:
+			raise IOError("Couldn't create temp folder")
+	
+	def get_temp_gdb(self):
+		if self.check_temp():
+			return self.temp_gdb
+		else:
+			raise IOError("Couldn't create temp gdb or folder")
+
+	
+		
 	def join(self):
 		
 		# need to check for errors - what if we don't have a db, then what if tables is still empty! # TODO
 		if not self.tables:
 			self.tables = self.get_tables(db)
-				
+		
+		self.pre_merge() # checks the tables to ensure that we've got a list that we can actually join
+		
 		for db in self.dbs:
 	
 			log.write("switching databases to %s" % db,True)
 			
-			row_index = {}
+			self.row_index = {}
 		
 			for series in config_series:
 		
 				print "Switching series to %s" % series[0]
 				config_mega_table = r"" # the location of the table that everything will be joined to
-				csv_keys = []
-				csv_rows = {}
+				self.csv_keys = []
+				self.csv_rows = {}
 				
 				# determine if mega-table is new. If it is, populate it!
 				try:
@@ -207,10 +260,10 @@ class join_data:
 		
 				if len(mega_table_join_field) == 0: # if we don't have the join field
 					print "Creating and populating the join field\n"
-					l_fields = self.create_columns_from_model(config_mega_table,[self.join_field],tables[0])
-					self.copy_data(tables[0],config_mega_table,[self.join_field,self.join_field],use_insert_cursor = True)
+					l_fields = self.create_columns_from_model(config_mega_table,[self.join_field],self.tables[0])
+					self.copy_data(self.tables[0],config_mega_table,[self.join_field,self.join_field],use_insert_cursor = True)
 		
-				for table in tables:
+				for table in self.tables:
 					print "processing %s" % table
 		
 					if len(series) > 0:
