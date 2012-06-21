@@ -1,13 +1,11 @@
 import os
-import tempfile
+import traceback
 
 import arcpy
-from arcpy import env
-from arcpy.sa import *
+from arcpy.sa import ZonalStatisticsAsTable
 
 from code_library.common import geospatial
 import config
-import support
 import log
 
 
@@ -32,6 +30,7 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 
 	return_tables = [] # will become a list of lists unless merge is True, then it's just a list
 	
+	num_vars = len(gdb.rasters)
 	for raster in gdb.rasters:
 		var_num += 1
 		zone_num = 0
@@ -45,7 +44,7 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 			zone_num += 1
 			
 			if log_string:
-				log.write("\n%s; raster %s; feature %s" % (log_string,var_num,zone_num),True)
+				log.write("\n%s; raster %s of %s; feature %s" % (log_string,var_num,num_vars,zone_num),True)
 			else:
 				log.write("\nraster %s; feature %s" % (var_num,zone_num),True)
 			
@@ -59,7 +58,7 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 				continue
 			
 		if merge:
-			output_name = raster
+			output_name = os.path.join(gdb.output_gdb,raster)
 			output_merged = merge_zonal(zs_list,output_name)
 			if output_merged:
 				return_tables.append(output_merged)
@@ -71,9 +70,14 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 def merge_zonal(file_list,output_name):
 
 	try:
+		if arcpy.Exists(output_name): # doesn't seem to obey overwriteOutput in 10.0
+			arcpy.Delete_management(output_name)
+		
+		# now run the merge
 		arcpy.Merge_management(file_list,output_name)
 	except:
-		log.error("Couldn't merge")
+		exception = traceback.format_exc()
+		log.error("Couldn't merge - traceback follows: %s" % exception)
 		return None
 		
 	return output_name
@@ -97,6 +101,7 @@ def zonal_stats(zones,raster,zone_field,filename = None, output_location = None)
 
 		try:
 			log.write("Running Zonal",True)
+			arcpy.env.extent = zones
 			outZSaT = ZonalStatisticsAsTable(zones, zone_field, raster, out_table, "DATA", "ALL")
 		except SystemExit:
 			log.error("System Exit returned from ZonalStatisticsAsTable")

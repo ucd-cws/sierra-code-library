@@ -37,6 +37,10 @@ class raster_gdb:
 		self.path = path
 		arcpy.env.workspace = None # prevent weird errors from leaving a "random" workspace
 
+		self.output_gdb = os.path.join(config.output_folder,self.name) + ".gdb"
+		if not arcpy.Exists(self.output_gdb):
+			arcpy.CreateFileGDB_management(config.output_folder,self.name)
+
 class polygon_file(geospatial.geospatial_object):
 	def __init__(self, main_file):
 		self.main_file = main_file
@@ -69,6 +73,9 @@ def setup(input_dataset):
 	log.init_log(config.run_dir)
 	
 	arcpy.CheckOutExtension("Spatial")
+	
+	arcpy.env.overwriteOutput = True
+	log.write("WARNING: Turning on overwrite output",True)
 	
 	for ds in config.current_datasets.keys():
 		tds = raster_dataset(ds,os.path.join(config.data_folder,config.current_datasets[ds]))
