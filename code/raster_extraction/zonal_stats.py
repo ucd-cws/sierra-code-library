@@ -1,14 +1,15 @@
 import os
+import tempfile
 
 import arcpy
 from arcpy import env
 from arcpy.sa import *
 
+from code_library.common import geospatial
 import config
 import support
 import log
-import processify
-	
+
 
 #old_vars = ["rch","aet","cwd","pet","snow","subl","stor"]
 #all_vars = ["run","ppt","pck","tmax","tmin"]
@@ -19,70 +20,77 @@ import processify
 
 #inZoneData = os.path.join(os.getcwd(),"snmeadows_area.gdb","snmeadows_hucs")
 
-def run_zonal(zones_file,gdbs,dataset_name,unique_filename,feature_string = None):
+def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field = None):
 	'''batches zonal stats across a set of rasters'''
 	
 	var_num = 0
 	
-	return_tables = [] # will become a list of lists
-	for gdb in gdbs:
+	if zone_field:
+		true_zone_field = zone_field
+	else:
+		true_zone_field = config.zone_field
+
+	return_tables = [] # will become a list of lists unless merge is True, then it's just a list
+	
+	for raster in gdb.rasters:
 		var_num += 1
-		num_processed = 0   
-		log.write("Switching Vars to %s - # %s" % (gdb.name,var_num),True)
-
-		# Set environment settings
-		arcpy.env.workspace = os.path.join(config.data_folder,dataset_name,gdb.name)
-
-		filename = os.path.splitext(os.path.split(zones_file)[1])[0]
-
-		out_workspace = os.path.join(config.output_folder,"zonal_%s_%s.gdb" % (unique_filename,gdb.name))
-		if support.check_gdb(config.output_folder,"zonal_%s_%s.gdb" % (unique_filename,gdb.name)) is False:
-			log.error("setting up db for %s failed" % out_workspace)
-			continue
+		zone_num = 0
 		
-		file_list = []
+		log.write("Switching Vars to %s - # %s" % (raster,var_num),True)
 		
-		for raster in gdb.rasters:
-			if feature_string:
-				log.write("\n%s; var %s -- %s already processed" % (feature_string,var_num,num_processed),True)
+		zs_list = []
+		
+		for zone_file in zones_files:
+			
+			zone_num += 1
+			
+			if log_string:
+				log.write("\n%s; raster %s; feature %s" % (log_string,var_num,zone_num),True)
 			else:
-				log.write("\nvar %s -- %s already processed" % (var_num,num_processed),True)
-			num_processed += 1
-		
-			log.write("processing %s" % raster,True)
-
+				log.write("\nraster %s; feature %s" % (var_num,zone_num),True)
+			
 			try:
-				outfile = zonal_stats(zones_file,filename,os.path.join(gdb.path,raster),out_workspace,config.zone_field)
+				outfile = zonal_stats(zone_file,os.path.join(gdb.path,raster),true_zone_field)
 				
 				if outfile:
-					file_list.append(outfile)
+					zs_list.append(outfile)
 			except:
-				raise
 				log.error("Failed to run zonal stats on raster %s in gdb %s" % (raster,gdb.name))
 				continue
-		
-		return_tables.append(file_list)
-
-
-def multifile_zonal(files,filename,raster,zone_field,output_location,merge_flag = False):
-	# very broken
+			
+		if merge:
+			output_name = raster
+			output_merged = merge_zonal(zs_list,output_name)
+			if output_merged:
+				return_tables.append(output_merged)
+		else:
+			return_tables.append(zs_list)
 	
-	results = []
-	for t_file in files:
-		results.append(zonal_stats(t_file,filename,os.path.join(gdb.path,raster),out_workspace,config.zone_field))
-		
+	return return_tables
 
-#@processify.processify
-def zonal_stats(zones,filename,raster,output_location,zone_field):
+def merge_zonal(file_list,output_name):
+
+	try:
+		arcpy.Merge_management(file_list,output_name)
+	except:
+		log.error("Couldn't merge")
+		return None
+		
+	return output_name
+
+def zonal_stats(zones,raster,zone_field,filename = None, output_location = None):
 
 	try:
 		# Set local variables
 		raster_name = os.path.splitext(os.path.split(raster)[1])[0]
-		out_table = os.path.join(output_location,"%s_%s" % (filename,raster_name))
+		if filename is None or output_location is None:
+			filename,output_location = geospatial.generate_gdb_filename("xt_%s" % raster_name)
+			
+		out_table = os.path.join(output_location,"%s" % (filename))
 
 		try:
 			if arcpy.Exists(out_table):
-				log.write("Skipping - already complete")
+				log.write("Skipping - already complete",True)
 				return out_table
 		except:
 			log.error("Couldn't test if it already exists...move along!")

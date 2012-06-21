@@ -1,16 +1,18 @@
 import os, sys
 import csv
 import tempfile
+import re
 
 import arcpy
 
 import log
+from code_library.common import geospatial
 
-class join_data:
-	def __init__(self,db_location,join_field = "HUC_12",add_fields = ["MEAN"],tables = None,dbs = None):
+class join_data(geospatial.geospatial_object):
+	def __init__(self,db_location = None,join_field = "HUC_12",add_fields = ["MEAN"],tables = None,dbs = None,csv_flag = True):
 		self.csv_keys = []
 		self.csv_rows = {}
-		self.csv_flag = True
+		self.csv_flag = csv_flag
 		
 		self.db_location = db_location
 		self.join_field = join_field
@@ -21,21 +23,17 @@ class join_data:
 		self.temp_folder = None
 		self.temp_gdb = None
 		
-		if not tables and not dbs:
-			raise ValueError("Both tables and dbs are undefined - can't set up join tables with no data")
-		
 	def create_unique_table(self,seed_name):
 	
-		uname = arcpy.CreateUniqueName(seed_name,self.mega_table_name)
+		uname = arcpy.CreateUniqueName(seed_name,self.output_location)
 		parts = os.path.split(uname)
 		arcpy.CreateTable_management(parts[0],parts[1])
 		print "Created table %s in file geodatabase\n" % uname
 		return os.path.join(self.mega_table_name,uname)
 
-	def check_mega_table_existence(self,db_location,seed_name = "megatable"):
+	def check_mega_table_existence(self,seed_name = "megatable"):
 			
 		is_gdb = False
-		import re
 		if re.search("gdb\/?\\?$", self.mega_table_name) or re.search("mdb\/?\\?$", self.mega_table_name): # regex says if the filename ends with gdb or gdb/ or gdb\ - whole line = if it's a file geodatabase
 			is_gdb = True
 		
@@ -68,7 +66,7 @@ class join_data:
 				sys.exit()
 			
 			# now, we have an existing file_gdb again - we can return a table in it
-			return self.create_unique_table(db_location,seed_name)
+			return self.create_unique_table(seed_name)
 		
 	def index_rows(self,cursor,column,data_column):
 		
@@ -179,6 +177,7 @@ class join_data:
 		''' if the tables attribute contains a list of lists, then each list contains tables that should be merged again). We'll do that and replace the tables attribute with the merge results
 		so that the self.tables attribute contains the kinds of tables we'd expect.'''
 		
+		# this is completely untested code
 		try:
 			final_tables = []
 			for table in self.tables:
@@ -198,47 +197,35 @@ class join_data:
 		
 		merged_data = arcpy.CreateUniqueName("merged",self.get_temp_gdb())		
 		return arcpy.Merge_management(tables,merged_data)
-		
-	def check_temp(self):
-		if not self.temp_folder or not self.temp_gdb:
-			try:
-				self.temp_folder = tempfile.mkdtemp()
-				temp_gdb = os.path.join(self.temp_folder,"join_temp.gdb")
-				if arcpy.Exists(temp_gdb):
-					self.temp_gdb = temp_gdb
-				else: # doesn't exist
-					log.write("Creating %s" % temp_gdb,True)
-					arcpy.CreateFileGDB_management(self.temp_folder,"join_temp.gdb")
-					self.temp_gdb = temp_gdb
-			except:
-				return False
-		return True
-	
-	def get_temp_folder(self):
-		if self.check_temp():
-			return self.temp_folder
-		else:
-			raise IOError("Couldn't create temp folder")
-	
-	def get_temp_gdb(self):
-		if self.check_temp():
-			return self.temp_gdb
-		else:
-			raise IOError("Couldn't create temp gdb or folder")
 
-	
+	def check_setup(self):
+		'''runs checks that make sure we're good to go'''
+		if not self.tables and not self.dbs:
+			raise ValueError("Both tables and dbs are undefined - can't set up join tables with no data")
+		
+		if not self.db_location:
+			raise ValueError("No output location")
 		
 	def join(self):
-		
-		# need to check for errors - what if we don't have a db, then what if tables is still empty! # TODO
-		if not self.tables:
-			self.tables = self.get_tables(db)
-		
+		try:
+			self.check_setup()
+			# need to check for errors - what if we don't have a db, then what if tables is still empty! # TODO
+		except ValueError as e:
+			log.error("Failed in check_setup - can't join")
+			log.error(e)
+
 		self.pre_merge() # checks the tables to ensure that we've got a list that we can actually join
+		# the list will come back as a new list because everything will be copied out, regardless of if it needs to be.
+		
+		if self.dbs and not self.tables:
+			# tables overrides dbs
+			pass
 		
 		for db in self.dbs:
-	
+
 			log.write("switching databases to %s" % db,True)
+			if not self.tables:
+				self.tables = self.get_tables(self.db)
 			
 			self.row_index = {}
 		
@@ -289,8 +276,8 @@ class join_data:
 							raise
 							break
 					
-					total_number = total_number - 1
-					print "completed processing %s - %s remaining\n" % (table,total_number)
+					#total_number = total_number - 1
+					#print "completed processing %s - %s remaining\n" % (table,total_number)
 		
 				if self.csv_flag:
 					self.write_csv(os.path.join(os.getcwd(),"%s.csv" % os.path.split(config_mega_table)[1]),csv_keys,csv_rows)
