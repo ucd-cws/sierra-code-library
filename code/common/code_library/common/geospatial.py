@@ -144,7 +144,7 @@ class geospatial_object:
 
 def generate_gdb_filename(name_base = "xt"):
 	temp_gdb = get_temp_gdb()
-	filename = arcpy.CreateUniqueName("name_base",temp_gdb)
+	filename = arcpy.CreateUniqueName(name_base,temp_gdb)
 	return os.path.split(filename)[1],temp_gdb
 
 def make_temp():

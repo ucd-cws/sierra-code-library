@@ -49,6 +49,16 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 				log.write("\nraster %s; feature %s" % (var_num,zone_num),True)
 			
 			try:
+				if config and config.check_zone_size:
+					try:
+						zone_size_ok = check_zone_size(zone_file,os.path.join(gdb.path,raster))
+						if not zone_size_ok:
+							log.error("checking raster size against feature looked like failure imminent. Skipping zone_file %s for raster %s" % (zone_file,raster))
+							continue
+					except:
+						log.error("checking raster size against feature looked like failure imminent. Skipping zone_file %s for raster %s" % (zone_file,raster))
+						continue
+				
 				outfile = zonal_stats(zone_file,os.path.join(gdb.path,raster),true_zone_field)
 				
 				if outfile:
@@ -67,8 +77,33 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 	
 	return return_tables
 
+def check_zone_size(zone_file,raster):
+	log.write("Checking areas against each other...")
+	
+	area_field = 'Shape_Area'
+	t_curs = arcpy.SearchCursor(zone_file,'','',area_field)
+	for row in t_curs:
+		shape_area = row.getValue(area_field)
+		break # only do it once - we can use the cursor differently, but this speedup is negligable here
+	
+	raster_band_info = arcpy.Describe(os.path.join(raster,"Band_1"))
+	cell_area = int(raster_band_info.meanCellWidth * raster_band_info.meanCellHeight)
+	
+	# this is a hack right now that does NOT account for differences in units. this WILL BREAK if the units are different. Turn it off in config if that's the case
+	if cell_area > shape_area: # 
+		ret_val = False
+	else:
+		ret_val = True
+		
+	del raster_band_info	
+	del t_curs
+	
+	return ret_val
+	
+
 def merge_zonal(file_list,output_name):
 
+	log.write("Merging tables",True)
 	try:
 		if arcpy.Exists(output_name): # doesn't seem to obey overwriteOutput in 10.0
 			arcpy.Delete_management(output_name)

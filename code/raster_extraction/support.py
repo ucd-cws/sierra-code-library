@@ -86,6 +86,9 @@ def setup(input_dataset):
 		log.error("Input dataset does not exist. Exiting")
 		sys.exit()
 		
+	if config.check_zone_size:
+		log.write("WARNING: check_zone_size is set to True. If your data is not all in the same units (as in, your catchments and your rasters should all be in meters, or some standard unit), things WILL BREAK. Either project your data, or set this flag to False in config.",True)
+		
 def run_files(file_objects,datasets):
 	'''splits the file into pieces and runs each gdb for it'''
 	
@@ -96,6 +99,7 @@ def run_files(file_objects,datasets):
 	
 	num_files = len(file_objects)
 	
+	final_tables = []
 	for dataset in datasets:
 		gdb_num = 0
 		num_gdbs = len(dataset.gdbs)
@@ -111,7 +115,7 @@ def run_files(file_objects,datasets):
 				log_string = "file %s of %s; gdb %s of %s" % (file_num,num_files,gdb_num,num_gdbs)
 				
 				# the below takes a list of files and a list of rasters and runs the files for each raster, returning a list of tables with the same name as the rasters
-				final_tables = zonal_stats.run_multi_zonal(file_obj.split_files,gdb,log_string,merge = True)
+				final_tables.append(zonal_stats.run_multi_zonal(file_obj.split_files,gdb,log_string,merge = True))
 
 	return final_tables
 
