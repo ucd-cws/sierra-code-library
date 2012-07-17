@@ -1,2 +1,5 @@
 syntax: glob
 *.pyc
+code/raster_extraction/output/*
+*.shelf
+code/raster_extraction/temp.gdb
