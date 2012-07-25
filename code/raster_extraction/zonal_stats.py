@@ -64,7 +64,8 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 				if outfile:
 					zs_list.append(outfile)
 			except:
-				log.error("Failed to run zonal stats on raster %s in gdb %s" % (raster,gdb.name))
+				exception = traceback.format_exc()
+				log.error("Failed to run zonal stats on raster %s in gdb %s - exception follows: %s" % (raster,gdb.name,exception))
 				continue
 			
 		if merge:
