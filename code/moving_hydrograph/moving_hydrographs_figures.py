@@ -5,11 +5,15 @@ from matplotlib import mlab
 import datetime as dt
 import os
 
-sites = ['NFA','SFY']
+sites = ['TUO']
+site_suffix = "stage_data" # filenames are of the form (site)_(site_suffix).csv without parens. eg TUO_stage_data.csv if "TUO" is site and "stage_data" is site_suffix
+
 #sites = ['NFA','MFA','RUB','NFY','MFY','SFY']
 title = {}
 title['NFA'] = 'North Fork American'
 title['SFY'] = 'South Fork Yuba'
+title['TUO'] = "Tuolumne"
+title['CLA'] = "Clavey"
 
 # colors are web colors...
 maincolor = '#33FFFF'
@@ -53,9 +57,9 @@ def convert_bad_date(date):
     return good_date
 
 for site in sites:
-    fname = '%s_Q_2011' % site
+    fname = '%s_%s.csv' % (site,site_suffix)
     
-    data = mlab.csv2rec(fname+'.csv', delimiter=',', skiprows=1)
+    data = mlab.csv2rec(fname, delimiter=',', skiprows=1)
     dates = data.date
     flows = data.cfs
     
@@ -65,11 +69,12 @@ for site in sites:
         fake_dates.append(i)
         i = i + 1
 	
-    print "Converting dates"
-    for inc in range(len(dates)): # convert all the poorly formatted dates into something this will understand
-        dates[inc] = convert_bad_date(dates[inc])
-        #print "[%s]" % dates[inc]
-    print "Dates converted"
+	# no need to convert dates this time
+	
+    #print "Converting dates"
+    #for inc in range(len(dates)): # convert all the poorly formatted dates into something this will understand
+    #    dates[inc] = convert_bad_date(dates[inc])
+    #print "Dates converted"
 	
     for i,d in enumerate(data.date):
         
