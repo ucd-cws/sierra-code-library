@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>CWS Sierra Team Code Library</title>
+<title>CWS Code Library</title>
 
 <style type="text/css">
 	body{
@@ -35,21 +35,27 @@
 </head>
 
 <body>
-	<h1>CWS Sierra Team Code Library</h1>
+	<h1>CWS Code Library</h1>
 	
 	<div class="warningbox">Hi there! Please give this document a quick read-through at least once before adding code to the code library.
 	If you are just looking to copy some code from the code library, you can skip to doing that!</div>
 	
-	<p>Welcome to the CWS Sierra Team Code Library! This repository exists to store scripts, utilities, and snapshots of large code projects
+	<p>Welcome to the CWS Code Library! This repository exists to store scripts, utilities, and snapshots of large code projects
 	so that the code is searchable and reusable.</p>
 	
 	<ol>
 		<li><a href="#structure">Files and Structure</a>
 			<ol>
 				<li><a href="#adding">Adding New Code and Making Changes</a></li>
+				<li><a href="#reuse">Python - Importing the CWS module</a></li>
+				<li><a href="#arcgis">ArcGIS - Subscribing to the CWS toolbox</a></li>
 			</ol>
 		</li>
-		<li><a href="#remote">Accessing Remotely or Copying to Your Computer</a></li>
+		<li><a href="#remote">Accessing Remotely or Copying to Your Computer</a>
+			<ol>
+				<li><a href="#installation">Installing on Another Computer</a></li>
+			</ol>
+		</li>
 		<li><a href="#versioncontrol">Version Control</a></li>
 		<li><a href="#purpose">Purpose</a></li>
 		<li><a href="#questions">Questions?</a></li>
@@ -76,14 +82,16 @@
 		</ul>
 	
 		<h3>Adding New Code and Making Changes</h3>
-			<p>Two kinds of code live in the code library:</p>
+			<p>Four kinds of code live in the code library:</p>
 			
 			<ol>
 				<li>scripts and utilities that are primarily located here (ie, changes are made directly to the code library
-				files) and</li>
+				files),</li>
 				<li>snapshots of larger code projects that are copied into the code library (for example: PISCES). We copy this code into the library
 				so that we can search one location for code. If you find something useful, you can then go find that code's primary location for the most
 				up-to-date code.</li>
+				<li>directly reusable python modules accessible via <code>import code_library</code> statement, and</li>
+				<li>an ArcGIS Toolbox of readymade utilities that you can subscribe to in order to have the latest version.</li>
 			</ol>
 			
 			<p>All code should be placed in its own folder with a descriptive name (even if that's just the name you've given you script).
@@ -99,7 +107,8 @@
 			or to "fork" the code - to copy it, rename it as a new code project in it's own folder, then make your changes with a note that the code extends 
 			the original code located in --location--. We do this to make sure that we aren't adding conflicting changes and so that if someone
 			goes to run code they built, they don't find it broken or doing unexpected things.</p>
-		
+		<h3><a name="reuse"></a>Python - Importing the CWS module</h3>
+		<h3><a name="arcgis"></a>ArcGIS - Subscribing to the CWS toolbox</h3>
 	<h2><a name="remote"></a>Accessing Remotely or Copying to Your Computer</h2>
 		<h3>Bitbucket</h3>
 		<p>You can access this repository remotely via BitBucket, which is used for version control (see the next section) at
@@ -108,10 +117,16 @@
 		<p>You can view software there, but you will need to "pull" a copy of the code to your local computer to use it from there.</p>
 		
 		<p>You can also maintain a copy of the code library on your computer if you frequently work remotely. It is recommended that
-		rather than copying the folder manually that you use <a href="http://tortoisehg.bitbucket.org/" target="_blank">TortoiseHg</a> to pull a copy of the library - that way, when changes are made,
+		rather than copying the folder manually that you use <a href="http://tortoisehg.bitbucket.org/" target="_blank">TortoiseHg</a> to pull a copy of
+		the library - that way, when changes are made,
 		you can click a button to receive them, then update your copy. Ask Nick for help.</p>
 		
 		<p><em>This site will have the most up-to-date copies of the code</em></p>
+		
+		<h3><a name="installation"></a>Installing on another computer</h3>
+		<p>Some of the code library tools rely on storing paths in the system registry and python path. To install the code library on another
+		computer, you will need to "install" it - loosely speaking. Installation is simple. First, copy the code library to the folder you want
+		it to live in. Then, run <em>install.py</em> in the root of the code library. That's it! You're done.</p>
 		
 		<h3>hydra.ucdavis.edu</h3>
 		<p>Hyrda <a href="http://hydra.ucdavis.edu" target="_blank">http://hydra.ucdavis.edu</a> has a code library that contains snapshots
@@ -123,8 +138,7 @@
 		What it means though is that changes are tracked, we can revert to earlier versions, note differences between versions,
 		and de-facto back up the the code to our offsite repositories.</p>
 		
-		<p>Using a version control system also allows us to maintain copies on other computers that can be synchronized. See the previous section
-		under "Bitbucket" for more details.</p>
+		<p>Using a version control system also allows us to maintain copies on other computers that can be synchronized. See the previous section under "Bitbucket" for more details.</p>
 	
 		<p>If you would like to know more about version control, see <a href="http://en.wikipedia.org/wiki/Revision_control" target="_blank">the
 		Wikipedia entry</a>. If you would like to learn how to use version control (and Hg in particular), see the excellent, free online book

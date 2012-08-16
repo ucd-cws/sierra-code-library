@@ -1,7 +1,6 @@
-import time
 import tempfile
+import traceback
 import sys
-import re
 
 import arcpy
 
@@ -41,6 +40,8 @@ class watershed():
 def setup_network(in_zones_file = None, zones_layer = None):
 
 	global watersheds
+	
+	sys.setrecursionlimit(6000) # cover a reasonably large huc network
 	
 	if in_zones_file:
 		global zones_file
@@ -109,7 +110,9 @@ def read_hucs(zone_layer):
 	hucs = []
 	for row in t_curs:
 		hucs.append(row.getValue(zones_field))
-		
+	
+	del row
+	del t_curs
 	return hucs
 
 def check_zones(zones_layer = None,cleanup = False):
@@ -153,7 +156,7 @@ def cleanup_zones(zones_layer,cleanup,allow_delete=False):
 	except:
 		pass
 
-def select_hucs(huc_list,zone_layer=None,copy_out = True):
+def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
 	
 	try:
 		log.write("Selecting features")
@@ -198,7 +201,7 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True):
 		
 		if copy_out: # if we're supposed to copy it out to a file - we might not need to because we might do something with the layer after this
 			log.write("Copying out",True)
-			t_name = arcpy.CreateUniqueName("upstream_hucs",temp_gdb)
+			t_name = arcpy.CreateUniqueName(base_name,temp_gdb)
 			arcpy.CopyFeatures_management(zone_layer,t_name)
 			log.write("Saved to %s" % t_name, True)
 		
@@ -278,7 +281,7 @@ def get_upstream(hucs):
 		if len(hucs_to_select) == 0: # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
 			return None
 		
-		extent_layer = select_hucs(hucs_to_select,zones_layer)
+		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="upstream_hucs")
 
 		cleanup_zones(zones_layer,"get_upstream",allow_delete=True)
 		
@@ -286,24 +289,68 @@ def get_upstream(hucs):
 
 		return extent_layer
 	except:
-		log.error("select upstream failed")
+		error_string = traceback.format_exc()
+		log.error("select upstream failed\n%s" % error_string)
+		return None
+
+def get_downstream(hucs):
+	
+	log.write("Getting Downstream HUCs",True)
+	
+	try:
+		zones_layer = check_zones(cleanup="get_downstream")
+		
+		hucs_to_select = []
+		for huc in hucs:
+			hucs_to_select += get_downstream_path(huc,watersheds)
+		
+		log.write("Selecting %s hucs" % len(hucs_to_select),True)
+		
+		if len(hucs_to_select) == 0: # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
+			return None
+		
+		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="downstream_hucs")
+		
+		cleanup_zones(zones_layer,"get_downstream",allow_delete=True)
+	
+		return extent_layer
+
+	except:
+		error_string = traceback.format_exc()
+		log.error("select downstream failed\n%s" % error_string)
 		return None
 	
-def get_downstream_path(zone,zones_downstream,path_list):
+def get_downstream_path(zone,l_watersheds):
+	'''starts with a huc and uses the watershed network to find a path downstream'''
 
-	current_DS = zone
-	while (current_DS is not None):
+	current_DS = zone # set the starting huc
+	path_list = []
+	while (current_DS is not None): # basically, run forever. We'll manually break
 		
-		if current_DS in network_end_hucs:
-			break
-		path_list.append(current_DS)
 		try:
-			current_DS = watersheds[current_DS].downstream
-		except KeyError: # we have hucs that reference downstream hucs, but because we clip to CA, they are missing - we need to tolerate that
+			if current_DS in network_end_hucs: # we've reached the end!
+				break
+			if current_DS in path_list: # oh shit, we're in an infinite loop! better warn the user and break
+				log.warning("Infinite loop in network. A downstream huc references an upstream huc. %s is part of this loop - check its 'upstream hucs'" % current_DS)
+				break
+			path_list.append(current_DS) # otherwise, add this item to the list of hucs in the path
+			try:
+				current_DS = l_watersheds[current_DS].downstream # then set the current item to this one's downstream item
+			except KeyError: # we have hucs that reference downstream hucs, but because we clip to CA, they are missing - we need to tolerate that
+				break
+		except:
+			log.error("Error finding downstream path. Path is likely incomplete")
 			break
+		
+	return path_list
 
 def get_upstream_from_hucs(hucs_layer):
 
 	hucs = read_hucs(hucs_layer)
 	
 	return get_upstream(hucs)
+
+def get_downstream_from_hucs(hucs_layer):
+	hucs = read_hucs(hucs_layer)
+	
+	return get_downstream(hucs)
