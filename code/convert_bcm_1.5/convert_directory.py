@@ -110,7 +110,7 @@ if not os.path.exists(config_parent_folder):
 	file_failed(config_parent_folder,"config_parent_folder is undefined or does not exist")
 	sys.exit(1)
 
-user_delete = raw_input("Delete input data upon conversion (y/n?) - default, no: ")
+#user_delete = raw_input("Delete input data upon conversion (y/n?) - default, no: ")
 
 for var in config_vars:
 	
@@ -194,7 +194,7 @@ for var in config_vars:
 			log( "\n\n\n")
 			continue # and then move on with our lives - go to the next iteration of the loop (don't crash)
 
-		if config_network is True or user_delete == "y" or user_delete == "yes":
+		if config_network is True:
 			network_clean(in_file) # just deletes the temp
 
 log( "\n\n")
