@@ -7,12 +7,16 @@ Created on Jun 20, 2012
 import tempfile
 import os
 import sys
+import re
 
 import arcpy
 
 temp_folder = None
 temp_gdb = None
 raster_count = 0
+
+delims_open = {'mdb':"[",'gdb':"\"",'shp':"\""} # a dictionary of field delimiters for use in sql statements. We don't always know that the huc layer will be stored 
+delims_close = {'mdb':"]",'gdb':"\"",'shp':"\""} # in one type of field or another. These two are just extension based lookups
 
 try:
 	import log
@@ -142,6 +146,39 @@ class geospatial_object:
 		
 		return split_features
 
+class data_file(geospatial_object):
+	def __init__(self,filename = None):
+		self.data_location = filename
+		
+	def set_delimiters(self):
+		
+		try:
+			fc_info = arcpy.ParseTableName(self.data_location)
+			database, owner, featureclass = fc_info.split(",")
+		except:
+			log.error("Failed to assess data format")
+			return False
+		
+		log.write("Type from ParseTableName = %s" % featureclass, level="debug")
+		
+		if re.match(" mdb",featureclass) is not None:
+			self.delim_open = delims_open['mdb']
+			self.delim_close = delims_close['mdb']
+		elif re.match(" gdb",featureclass) is not None:
+			self.delim_open = delims_open['gdb']
+			self.delim_close = delims_close['gdb']
+		elif re.match(" shp",featureclass) is not None:
+			self.delim_open = delims_open['shp']
+			self.delim_close = delims_close['shp']
+		elif re.match(" sde",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
+			self.delim_open = ""
+			self.delim_close = ""
+		else:
+			log.warning("No field delimiters for this type of data. We can select features in gdbs, mdbs, shps, and possibly sde files (untested)",True)
+			return False
+		
+		return True
+	
 def generate_gdb_filename(name_base = "xt"):
 	temp_gdb = get_temp_gdb()
 	filename = arcpy.CreateUniqueName(name_base,temp_gdb)
