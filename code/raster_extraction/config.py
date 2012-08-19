@@ -1,13 +1,10 @@
 import os
-import sys
-
-import arcpy
-
-import support
 
 run_dir = os.getcwd()
 
 zone_field = "NID"
+
+flag_subprocess_zonal_stats = True # default: False - True means that it will run the zonal stats in a subprocess. Slower, but works around some arcgis issues
 
 bcm_folder = None
 usgs_data = "usgs_data"

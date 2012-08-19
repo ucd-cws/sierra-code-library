@@ -1,10 +1,11 @@
 import os
 import traceback
+import subprocess
 
 import arcpy
 from arcpy.sa import ZonalStatisticsAsTable
 
-from code_library.common import geospatial
+from code_library.common import geospatial #@UnresolvedImport
 import config
 import log
 
@@ -58,8 +59,15 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 					except:
 						log.error("checking raster size against feature looked like failure imminent. Skipping zone_file %s for raster %s" % (zone_file,raster))
 						continue
-				
-				outfile = zonal_stats(zone_file,os.path.join(gdb.path,raster),true_zone_field)
+				if config.flag_subprocess_zonal_stats:
+					try:
+						# the subprocessed version will return an appropriate status code. Only when it's 0 does outfile get set properly. Otherwise, an exception is raised
+						outfile = subprocess.check_output(["python",os.path.join(config.run_dir,"standalone_zonal.py"),zone_file,os.path.join(gdb.path,raster),true_zone_field])
+					except:
+						log.error("Interpreter Crash - proceeding")
+						outfile = None
+				else:
+					outfile = zonal_stats(zone_file,os.path.join(gdb.path,raster),true_zone_field)
 				
 				if outfile:
 					zs_list.append(outfile)
