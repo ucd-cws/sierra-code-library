@@ -1,4 +1,5 @@
 import os
+import sys
 import traceback
 import subprocess
 
@@ -59,15 +60,28 @@ def run_multi_zonal(zones_files,gdb,log_string = None,merge = False, zone_field 
 					except:
 						log.error("checking raster size against feature looked like failure imminent. Skipping zone_file %s for raster %s" % (zone_file,raster))
 						continue
+				outfile = None
+                                full_raster = os.path.join(gdb.path,raster)
 				if config.flag_subprocess_zonal_stats:
 					try:
+						# call this beforehand to minimize creation of tempdbs and parsing of the output
+						outfile,filename,output_location,raster_name = get_output_table(full_raster,None,None)
+						
 						# the subprocessed version will return an appropriate status code. Only when it's 0 does outfile get set properly. Otherwise, an exception is raised
-						outfile = subprocess.check_output(["python",os.path.join(config.run_dir,"standalone_zonal.py"),zone_file,os.path.join(gdb.path,raster),true_zone_field])
-					except:
-						log.error("Interpreter Crash - proceeding")
+						t_outfile = subprocess_check_output([os.path.join(sys.prefix,"python.exe"),os.path.join(config.run_dir,"standalone_zonal.py"),zone_file,full_raster,true_zone_field,filename,output_location])
+						t_info = t_outfile.split('\n') # there will be multiple output lines, so split it
+						log.write("returned info says outfile at %s - we have it stored at %s. Those should match" % (t_info[-2],outfile)) # and get the last line
+						del t_info # cleanup
+					except CalledProcessError as e:
+						log.error("Interpreter Crash - proceeding - error given: %s" % e)
 						outfile = None
+					except:
+                                                err_str = traceback.format_exc()
+                                                log.error("Other error in subprocessing. Proceeding, but something's wrong! error gave %s" % err_str)
+                                                outfile = None
 				else:
-					outfile = zonal_stats(zone_file,os.path.join(gdb.path,raster),true_zone_field)
+                                        # or, in a sane world, just call zonal_stats
+					outfile = zonal_stats(zone_file,full_raster,true_zone_field)
 				
 				if outfile:
 					zs_list.append(outfile)
@@ -126,32 +140,33 @@ def merge_zonal(file_list,output_name):
 		
 	return output_name
 
-def zonal_stats(zones,raster,zone_field,filename = None, output_location = None):
+def zonal_stats(zones,raster,zone_field,filename = None, output_location = None,silent = False):
 
 	try:
 		# Set local variables
-		raster_name = os.path.splitext(os.path.split(raster)[1])[0]
-		if filename is None or output_location is None:
-			filename,output_location = geospatial.generate_gdb_filename("xt_%s" % raster_name)
-			
-		out_table = os.path.join(output_location,"%s" % (filename))
+		out_table,filename,output_location,raster_name = get_output_table(raster,filename,output_location)
 
 		try:
 			if arcpy.Exists(out_table):
-				log.write("Skipping - already complete",True)
+                                if not silent:
+        				log.write("Skipping - already complete",True)
 				return out_table
 		except:
-			log.error("Couldn't test if it already exists...move along!")
+                        if not silent or silent == "error":
+                                log.error("Couldn't test if it already exists...move along!")
 
 		try:
-			log.write("Running Zonal",True)
+			if not silent:
+                                log.write("Running Zonal",True)
 			arcpy.env.extent = zones
 			outZSaT = ZonalStatisticsAsTable(zones, zone_field, raster, out_table, "DATA", "ALL")
 		except SystemExit:
-			log.error("System Exit returned from ZonalStatisticsAsTable")
+                        if not silent or silent == "error":
+        			log.error("System Exit returned from ZonalStatisticsAsTable")
 		except:
 			raise
-			log.error("Unable to run stats on raster %s" % out_table)
+        		if not silent or silent == "error":
+                		log.error("Unable to run stats on raster %s" % out_table)
 			return None
 
 		del outZSaT # these should be local, but it's Arc!
@@ -160,5 +175,67 @@ def zonal_stats(zones,raster,zone_field,filename = None, output_location = None)
 				
 	except:
 		raise
-		log.error("Unhandled Exception in zonal_stats function")
+                if not silent or silent == "error":
+        		log.error("Unhandled Exception in zonal_stats function")
+        		
+def get_output_table(raster,filename=None,output_location=None):
+        raster_name = os.path.splitext(os.path.split(raster)[1])[0]
+	if filename is None or output_location is None:
+                filename,output_location = geospatial.generate_gdb_filename("xt_%s" % raster_name)
+			
+	out_table = os.path.join(output_location,"%s" % (filename))
 
+        return out_table,filename,output_location,raster_name # we may need all of this
+
+def subprocess_check_output(*popenargs, **kwargs):
+    r"""
+    Nick took this directly from the Python 2.7 codebase and
+    modified it only so that things properly reference the subprocess
+    module. This is exactly the function we need, but it's not available in
+    Python 2.6
+
+    Run command with arguments and return its output as a byte string.
+
+    If the exit code was non-zero it raises a CalledProcessError.  The
+    CalledProcessError object will have the return code in the returncode
+    attribute and output in the output attribute.
+
+    The arguments are the same as for the Popen constructor.  Example:
+
+    >>> check_output(["ls", "-l", "/dev/null"])
+    'crw-rw-rw- 1 root root 1, 3 Oct 18  2007 /dev/null\n'
+
+    The stdout argument is not allowed as it is used internally.
+    To capture standard error in the result, use stderr=STDOUT.
+
+    >>> check_output(["/bin/sh", "-c",
+    ...               "ls -l non_existent_file ; exit 0"],
+    ...              stderr=STDOUT)
+    'ls: non_existent_file: No such file or directory\n'
+    """
+    if 'stdout' in kwargs:
+        raise ValueError('stdout argument not allowed, it will be overridden.')
+    process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+    output, unused_err = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        raise CalledProcessError(retcode, cmd, output=output)
+    return output
+
+class CalledProcessError(Exception):
+    """Also need a copy of this class because it has a new kwarg
+
+    This exception is raised when a process run by check_call() or
+    check_output() returns a non-zero exit status.
+    The exit status will be stored in the returncode attribute;
+    check_output() will also store the output in the output attribute.
+    """
+    def __init__(self, returncode, cmd, output=None):
+        self.returncode = returncode
+        self.cmd = cmd
+        self.output = output
+    def __str__(self):
+        return "Command '%s' returned non-zero exit status %d" % (self.cmd, self.returncode)
