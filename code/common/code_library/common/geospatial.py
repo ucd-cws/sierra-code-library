@@ -179,10 +179,14 @@ class data_file(geospatial_object):
 		
 		return True
 	
-def generate_gdb_filename(name_base = "xt"):
+def generate_gdb_filename(name_base = "xt",return_full = False):
+	'''returns the filename and the gdb separately for use in some tools'''
 	temp_gdb = get_temp_gdb()
 	filename = arcpy.CreateUniqueName(name_base,temp_gdb)
-	return os.path.split(filename)[1],temp_gdb
+	if return_full:
+		return filename
+	else:
+		return os.path.split(filename)[1],temp_gdb
 
 def make_temp():
 
