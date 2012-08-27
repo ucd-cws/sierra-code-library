@@ -225,3 +225,45 @@ def get_temp_gdb():
 		return temp_gdb
 	else:
 		raise IOError("Couldn't create temp gdb or folder")
+	
+def write_features_from_list(data = None, type="POINT",filename = None):
+	
+	if not data:
+		log.error("Input data to write_features_from_list does not exist")
+		return False
+	
+	if not hasattr(data,'next'): # check if exists and that it's Iterable
+		log.error("Input data to write_features_from_list is not an Iterable. If you have a single item, pass it in as part of an iterable (tuple or list) please")
+	
+	filename = check_spatial_filename(filename,create_filename = True)
+	
+	if not filename:
+		log.error("Error in filename passed to write_features_from_list")
+	
+	arcpy.CreateFeatureclass_management(filename)
+
+def check_spatial_filename(filename = None, create_filename = True, check_exists = True):
+	'''usage: filename = check_spatial_filename(filename = None, create_filename = True, check_exists = True). Checks that we have a filename, optionally creates one, makes paths absolute,
+		and ensures that they don't exist yet when passed in. Caller may disable the check_exists (for speed) using check_exists = False
+	'''
+	
+	if not filename and create_filename is True:
+		# if they didn't provide a filename and we're supposed to make one, then make one
+		return generate_gdb_filename()
+	elif not filename:
+		log.warning("No filename to check provided, but create_filename is False")
+		return False
+	
+	if os.path.isabs(filename):
+		rel_path = filename
+		filename = os.path.abspath(filename)
+		log.warning("Transforming relative path %s to absolute path %s" % (rel_path,filename))
+
+	if check_exists and arcpy.Exists(filename):
+		log.warning("Filename cannot already exist - found in check_spatial_filename")
+		return False
+		
+	return filename
+			
+	
+	
