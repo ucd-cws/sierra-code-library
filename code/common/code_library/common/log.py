@@ -13,6 +13,7 @@ except:
 
 log_file = os.path.join(os.getcwd(),"log_db.sqlite3")# this is a default
 log_folder = None
+print_warnings = True
 
 log_connection = None
 log_cursor = None
@@ -73,7 +74,7 @@ def write(log_string = None,screen = False, level="log"): # levels are "log", "w
 		init_log()
 		
 	global log_cursor, run_id
-	if screen is True or level == "warning" or level == "error":
+	if screen is True or (level == "warning" and print_warnings) or level == "error":
 		if is_arc_script and level == "warning":
 			arcpy.AddWarning(log_string)
 		elif is_arc_script and level == "error":
@@ -93,7 +94,7 @@ def write(log_string = None,screen = False, level="log"): # levels are "log", "w
 			arcpy.AddMessage("Couldn't insert record into log! Printing...")
 		else:
 			print "Couldn't insert record into log! Printing..."
-		if screen is not True and level != "warning" and level != "error": # in those cases, we already printed it...
+		if screen is not True and (level != "warning" or print_warnings is False) and level != "error": # in those cases, we already printed it...
 			if is_arc_script:
 				arcpy.AddMessage(log_string)
 			else:

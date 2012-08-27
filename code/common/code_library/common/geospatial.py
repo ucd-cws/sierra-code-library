@@ -226,7 +226,11 @@ def get_temp_gdb():
 	else:
 		raise IOError("Couldn't create temp gdb or folder")
 	
-def write_features_from_list(data = None, type="POINT",filename = None):
+def write_features_from_list(data = None, data_type="POINT",filename = None,spatial_reference = None):
+	
+	if not spatial_reference:
+		log.error("No spatial reference to write features out to in write_features_from_list")
+		return False
 	
 	if not data:
 		log.error("Input data to write_features_from_list does not exist")
@@ -239,8 +243,39 @@ def write_features_from_list(data = None, type="POINT",filename = None):
 	
 	if not filename:
 		log.error("Error in filename passed to write_features_from_list")
+		return False
 	
-	arcpy.CreateFeatureclass_management(filename)
+	data_types = ("POINT","MULTIPOINT","POLYGON","POLYLINE")
+	if not data_type in data_types:
+		log.error("data_type passed into write_features from list is not in data_types")
+		return False
+	
+	path_parts = os.path.split(filename)
+	arcpy.CreateFeatureclass_management(path_parts[0],path_parts[1],data_type)
+	
+	valid_datatypes = (arcpy.arcobjects.arcobjects.Point,arcpy.arcobjects.arcobjects.Polygon,arcpy.arcobjects.arcobjects.Polyline,arcpy.arcobjects.arcobjects.Multipoint)
+	
+	inserter = arcpy.InsertCursor(filename)
+	for feature_shape in data:
+		cont_flag = True # skip this by default if it's not a valid datatype
+		for dt in valid_datatypes:
+			if isinstance(feature_shape,dt):
+				cont_flag = False # check the object against all of the valid datatypes and make sure it's a class instance. If so, set this to false so we don't skip this feature
+				log.warning("Skipping insertion of feature object due to improper feature type")
+				
+		if cont_flag:
+			continue
+		
+		in_feature = inserter.newRow()
+		in_feature.shape = feature_shape
+		inserter.insertRow(in_feature)
+		
+	del feature_shape
+	del inserter
+	
+	return filename
+				
+		
 
 def check_spatial_filename(filename = None, create_filename = True, check_exists = True):
 	'''usage: filename = check_spatial_filename(filename = None, create_filename = True, check_exists = True). Checks that we have a filename, optionally creates one, makes paths absolute,
