@@ -186,17 +186,18 @@ class data_file(geospatial_object):
 		
 		return True
 
-def generate_fast_filename(name_base = "xt",return_full = False):
+def generate_fast_filename(name_base = "xt",return_full = True):
 	'''uses the in_memory workspace and calls generate_gdb_filename with that as the gdb'''
 	
 	return generate_gdb_filename(name_base,return_full,"in_memory")
 
-def generate_gdb_filename(name_base = "xt",return_full = False,gdb=None):
+def generate_gdb_filename(name_base = "xt",return_full = True,gdb=None):
 	'''returns the filename and the gdb separately for use in some tools'''
 	if gdb is None:
 		temp_gdb = get_temp_gdb()
 	else:
 		temp_gdb = gdb
+		
 	try:
 		filename = arcpy.CreateUniqueName(name_base,temp_gdb)
 	except:

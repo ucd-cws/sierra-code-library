@@ -181,10 +181,8 @@ def zonal_stats(zones,raster,zone_field,filename = None, output_location = None,
 def get_output_table(raster,filename=None,output_location=None):
         raster_name = os.path.splitext(os.path.split(raster)[1])[0]
 	if filename is None or output_location is None:
-                filename,output_location = geospatial.generate_gdb_filename("xt_%s" % raster_name)
+               out_table = geospatial.generate_gdb_filename("xt_%s" % raster_name)
 			
-	out_table = os.path.join(output_location,"%s" % (filename))
-
         return out_table,filename,output_location,raster_name # we may need all of this
 
 def subprocess_check_output(*popenargs, **kwargs):

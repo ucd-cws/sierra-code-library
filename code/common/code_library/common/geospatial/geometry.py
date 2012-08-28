@@ -4,6 +4,7 @@ Created on Aug 28, 2012
 @author: nicksantos
 '''
 import os
+import traceback
 
 import arcpy
 
@@ -35,9 +36,14 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None):
 			continue 
 	
 	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference = spatial_reference)
-	out_table = geospatial.generate_gdb_filename()
+	log.write("Point File located at %s" % point_file)
+	out_table = geospatial.generate_gdb_filename(return_full=True)
+	log.write("Output Table will be located at %s" % out_table)
 	
-	arcpy.PointDistance_analysis(point_file,point_file,out_table,max_distance)
+	try:
+		arcpy.PointDistance_analysis(point_file,point_file,out_table,max_distance)
+	except:
+		log.error("Couldn't run PointDistance - %s" % traceback.format_exc())
 	
 	return out_table
 
@@ -60,6 +66,7 @@ def simple_centroid_distance(feature1,feature2,spatial_reference):
 	del reader
 	del row
 	
+	log.write("Centroid Distance is %s" % distance)
 	return distance
 	
 
