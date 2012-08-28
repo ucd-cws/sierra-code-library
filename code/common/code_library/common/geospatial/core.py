@@ -1,15 +1,22 @@
 '''
-Created on Jun 20, 2012
+Created on Aug 28, 2012
 
-@author: Nick
+@author: nicksantos
 '''
 
 import tempfile
 import os
 import sys
 import re
+import traceback
 
 import arcpy
+
+import code_library #@UnresolvedImport
+
+coordinate_systems = os.path.join(arcpy.GetInstallInfo()['InstallDir'],"Coordinate Systems")
+projected_coordinate_systems = os.path.join(coordinate_systems,"Projected Coordinate Systems")
+teale_albers = os.path.join(projected_coordinate_systems,"State Systems","NAD 1983 California (Teale) Albers (Meters).prj")
 
 temp_folder = None
 temp_gdb = None
@@ -19,7 +26,7 @@ delims_open = {'mdb':"[",'gdb':"\"",'shp':"\""} # a dictionary of field delimite
 delims_close = {'mdb':"]",'gdb':"\"",'shp':"\""} # in one type of field or another. These two are just extension based lookups
 
 try:
-	import log
+	from code_library.common import log #@UnresolvedImport
 except:
 	pass # fail silently - this will only be used in projects that have a log module 
 
@@ -178,11 +185,24 @@ class data_file(geospatial_object):
 			return False
 		
 		return True
+
+def generate_fast_filename(name_base = "xt",return_full = False):
+	'''uses the in_memory workspace and calls generate_gdb_filename with that as the gdb'''
 	
-def generate_gdb_filename(name_base = "xt",return_full = False):
+	return generate_gdb_filename(name_base,return_full,"in_memory")
+
+def generate_gdb_filename(name_base = "xt",return_full = False,gdb=None):
 	'''returns the filename and the gdb separately for use in some tools'''
-	temp_gdb = get_temp_gdb()
-	filename = arcpy.CreateUniqueName(name_base,temp_gdb)
+	if gdb is None:
+		temp_gdb = get_temp_gdb()
+	else:
+		temp_gdb = gdb
+	try:
+		filename = arcpy.CreateUniqueName(name_base,temp_gdb)
+	except:
+		log.error("Couln't create GDB filename - %s" % traceback.format_exc())
+		raise
+	
 	if return_full:
 		return filename
 	else:
@@ -225,66 +245,18 @@ def get_temp_gdb():
 		return temp_gdb
 	else:
 		raise IOError("Couldn't create temp gdb or folder")
-	
-def write_features_from_list(data = None, data_type="POINT",filename = None,spatial_reference = None):
-	
-	if not spatial_reference:
-		log.error("No spatial reference to write features out to in write_features_from_list")
-		return False
-	
-	if not data:
-		log.error("Input data to write_features_from_list does not exist")
-		return False
-	
-	if not hasattr(data,'next'): # check if exists and that it's Iterable
-		log.error("Input data to write_features_from_list is not an Iterable. If you have a single item, pass it in as part of an iterable (tuple or list) please")
-	
-	filename = check_spatial_filename(filename,create_filename = True)
-	
-	if not filename:
-		log.error("Error in filename passed to write_features_from_list")
-		return False
-	
-	data_types = ("POINT","MULTIPOINT","POLYGON","POLYLINE")
-	if not data_type in data_types:
-		log.error("data_type passed into write_features from list is not in data_types")
-		return False
-	
-	path_parts = os.path.split(filename)
-	arcpy.CreateFeatureclass_management(path_parts[0],path_parts[1],data_type)
-	
-	valid_datatypes = (arcpy.arcobjects.arcobjects.Point,arcpy.arcobjects.arcobjects.Polygon,arcpy.arcobjects.arcobjects.Polyline,arcpy.arcobjects.arcobjects.Multipoint)
-	
-	inserter = arcpy.InsertCursor(filename)
-	for feature_shape in data:
-		cont_flag = True # skip this by default if it's not a valid datatype
-		for dt in valid_datatypes:
-			if isinstance(feature_shape,dt):
-				cont_flag = False # check the object against all of the valid datatypes and make sure it's a class instance. If so, set this to false so we don't skip this feature
-				log.warning("Skipping insertion of feature object due to improper feature type")
-				
-		if cont_flag:
-			continue
-		
-		in_feature = inserter.newRow()
-		in_feature.shape = feature_shape
-		inserter.insertRow(in_feature)
-		
-	del feature_shape
-	del inserter
-	
-	return filename
-				
-		
 
-def check_spatial_filename(filename = None, create_filename = True, check_exists = True):
+def check_spatial_filename(filename = None, create_filename = True, check_exists = True,allow_fast = False):
 	'''usage: filename = check_spatial_filename(filename = None, create_filename = True, check_exists = True). Checks that we have a filename, optionally creates one, makes paths absolute,
 		and ensures that they don't exist yet when passed in. Caller may disable the check_exists (for speed) using check_exists = False
 	'''
 	
 	if not filename and create_filename is True:
 		# if they didn't provide a filename and we're supposed to make one, then make one
-		return generate_gdb_filename()
+		if allow_fast:
+			return generate_fast_filename(return_full=True)
+		else:
+			return generate_gdb_filename(return_full=True)
 	elif not filename:
 		log.warning("No filename to check provided, but create_filename is False")
 		return False
@@ -299,6 +271,14 @@ def check_spatial_filename(filename = None, create_filename = True, check_exists
 		return False
 		
 	return filename
-			
+
+def get_spatial_reference(dataset = None):
+	if not dataset:
+		raise ValueError("No dataset provided to get spatial reference")
 	
+	desc = arcpy.Describe(dataset)
 	
+	sr = desc.spatialReference
+	del desc
+	
+	return sr
