@@ -18,7 +18,7 @@ except:
 	print "FAILED to register"
 	
 try:
-	locations = ("releases\\common","releases\\cws_toolbox","code\\common","code\\cws_toolbox")
+	locations = ("releases\\common\\current","releases\\cws_toolbox\\current","code\\common","code\\cws_toolbox")
 	print "Writing location to Python path"
 	pth_dir = get_python_lib()
 	pth_file = os.path.join(pth_dir,"code_library.pth")
