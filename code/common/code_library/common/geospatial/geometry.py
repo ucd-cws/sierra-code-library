@@ -12,7 +12,7 @@ import code_library
 from code_library.common import log
 from code_library.common.geospatial import core as geospatial
 
-def centroid_distance(features = [],spatial_reference = None,max_distance=None,dissolve=False):
+def centroid_distance(features = [],spatial_reference = None,max_distance=None,dissolve=False,return_file=False):
 	
 	'''takes multiple input feature classes, retrieves the centroids of every polygon as points, and writes those points to a file, before running
 		PointDistance_analysis() on the data. It returns the out_table given by Point Distance. This is most predictable when two feature classes with a single feature
@@ -49,9 +49,12 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None,d
 	except:
 		log.error("Couldn't run PointDistance - %s" % traceback.format_exc())
 	
-	return out_table
+	if return_file:
+		return out_table,point_file
+	else:
+		return out_table
 
-def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False):
+def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False,return_file=False):
 	'''wraps centroid_distance and requires that each feature only has 1 polygon in it. Returns the distance value instead of the table. Doesn't check
 		whether or not each file has only one polygon, so it will return the FIRST distance value in the out_table, regardless of what it actually is. Don't use this unless you
 		are sure you can pass in the correct data'''
@@ -59,7 +62,7 @@ def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False)
 	if not feature1 or not feature2:
 		raise ValueError("feature1 or feature2 is not defined")
 	
-	out_table = centroid_distance((feature1,feature2),spatial_reference,dissolve=dissolve)
+	out_table,point_file = centroid_distance((feature1,feature2),spatial_reference,dissolve=dissolve,return_file=True) # always return file here, but we'll filter it below
 	
 	if out_table is False:
 		return False
@@ -67,13 +70,22 @@ def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False)
 	reader = arcpy.SearchCursor(out_table)
 	
 	distance = None
+	i = 0
 	for row in reader:
+		if i > 1: # if this is a third iteration of the loop warn the user! The table WILL have two records. One in each direction
+			log.warning("Simple Centroid Disance used, but output table has more than two records (the amount for two points). Likely more than two centroids were generated. Check you inputs and use dissolve=True if you aren't already")
+			break
 		distance = row.getValue("DISTANCE")
-	
+		i+=1
+		
 	del reader
 	
 	log.write("Centroid Distance is %s" % distance)
-	return distance
+	
+	if return_file:
+		return distance,out_table,point_file
+	else:
+		return distance	
 	
 
 def write_features_from_list(data = None, data_type="POINT",filename = None,spatial_reference = None):
