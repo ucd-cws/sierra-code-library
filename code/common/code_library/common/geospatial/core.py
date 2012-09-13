@@ -204,6 +204,8 @@ def generate_gdb_filename(name_base = "xt",return_full = True,gdb=None):
 		log.error("Couln't create GDB filename - %s" % traceback.format_exc())
 		raise
 	
+	code_library.temp_datasets.append(filename) # add it to the tempfile registry
+	
 	if return_full:
 		return filename
 	else:

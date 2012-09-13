@@ -12,7 +12,7 @@ import code_library
 from code_library.common import log
 from code_library.common.geospatial import core as geospatial
 
-def centroid_distance(features = [],spatial_reference = None,max_distance=None):
+def centroid_distance(features = [],spatial_reference = None,max_distance=None,dissolve=False):
 	
 	'''takes multiple input feature classes, retrieves the centroids of every polygon as points, and writes those points to a file, before running
 		PointDistance_analysis() on the data. It returns the out_table given by Point Distance. This is most predictable when two feature classes with a single feature
@@ -31,13 +31,17 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None):
 	all_centroids = []
 	for feature in features:
 		try:
-			all_centroids += get_centroids(feature) # merge, don't append
+			all_centroids += get_centroids(feature,dissolve=dissolve) # merge, don't append
 		except:
 			continue 
 	
+	if len(all_centroids) == 0:
+		log.warning("No centroids generated - something probably went wrong")
+		return False
+	
 	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference = spatial_reference)
 	log.write("Point File located at %s" % point_file)
-	out_table = geospatial.generate_gdb_filename(return_full=True)
+	out_table = geospatial.generate_gdb_filename("out_table",return_full=True)
 	log.write("Output Table will be located at %s" % out_table)
 	
 	try:
@@ -47,7 +51,7 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None):
 	
 	return out_table
 
-def simple_centroid_distance(feature1,feature2,spatial_reference):
+def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False):
 	'''wraps centroid_distance and requires that each feature only has 1 polygon in it. Returns the distance value instead of the table. Doesn't check
 		whether or not each file has only one polygon, so it will return the FIRST distance value in the out_table, regardless of what it actually is. Don't use this unless you
 		are sure you can pass in the correct data'''
@@ -55,7 +59,10 @@ def simple_centroid_distance(feature1,feature2,spatial_reference):
 	if not feature1 or not feature2:
 		raise ValueError("feature1 or feature2 is not defined")
 	
-	out_table = centroid_distance((feature1,feature2),spatial_reference)
+	out_table = centroid_distance((feature1,feature2),spatial_reference,dissolve=dissolve)
+	
+	if out_table is False:
+		return False
 	
 	reader = arcpy.SearchCursor(out_table)
 	
@@ -134,7 +141,7 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	
 	return filename
 	
-def get_centroids(feature = None,method="FEATURE_TO_POINT"):
+def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False):
 	
 	methods = ("FEATURE_TO_POINT","ATTRIBUTE",) #"MEAN_CENTER","MEDIAN_CENTER")
 	
@@ -149,6 +156,14 @@ def get_centroids(feature = None,method="FEATURE_TO_POINT"):
 		log.warning("Type of feature in get_centroids is not Polygon")
 		return []
 
+	if dissolve: # should we predissolve it?
+		t_name = geospatial.generate_fast_filename("dissolved")
+		try:
+			arcpy.Dissolve_management(feature,t_name)
+			feature = t_name
+		except:
+			log.warning("Couldn't dissolve features first. Continuing anyway, but the results WILL be different than expected")
+
 	if method == "ATTRIBUTE":
 		points = centroid_attribute(feature)
 	elif method == "FEATURE_TO_POINT":
@@ -157,7 +172,10 @@ def get_centroids(feature = None,method="FEATURE_TO_POINT"):
 		except:
 			err_str = traceback.format_exc()
 			log.warning("failed to obtain centroids using feature_to_point method. traceback follows:\n %s" % err_str)
-				
+	
+	#if t_name: # if we created a temporary file in memory
+	#	arcpy.Delete_management(t_name) # clean it up - deleting seems to destroy the point objects
+	
 	return points
 
 def centroid_attribute(feature = None):
@@ -172,7 +190,7 @@ def centroid_attribute(feature = None):
 	return points
 
 def centroid_feature_to_point(feature):
-	t_name = geospatial.generate_fast_filename()
+	t_name = geospatial.generate_fast_filename("feature_to_point")
 	
 	arcpy.FeatureToPoint_management(feature, t_name,"CENTROID")
 		
@@ -181,14 +199,17 @@ def centroid_feature_to_point(feature):
 	points = []
 	for record in curs:
 		points.append(record.shape.getPart()) # get the shape's point
-		
+	
+	arcpy.Delete_management(t_name) # clean up the in_memory workspace
+	del curs
+	
 	return points
 
-def get_centroids_as_file(feature=None,filename = None,spatial_reference = None):
+def get_centroids_as_file(feature=None,filename = None,spatial_reference = None,dissolve=True):
 	'''shortcut function to get the centroids as a file - called functions do error checking'''
 	
 	try:
-		cens = get_centroids(feature)
+		cens = get_centroids(feature,dissolve=dissolve)
 		if (len(cens) > 0):
 			return write_features_from_list(cens,data_type="POINT",filename=filename,spatial_reference=spatial_reference)
 		else:

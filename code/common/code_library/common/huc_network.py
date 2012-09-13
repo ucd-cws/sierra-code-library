@@ -27,8 +27,8 @@ network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN"]
 
 huc_layer_cache = {}
 
-temp_folder = tempfile.mkdtemp(prefix = "select_hucs")
-temp_gdb = arcpy.CreateFileGDB_management(temp_folder,"select_hucs_temp.gdb")
+temp_folder = None
+temp_gdb = None
 
 class watershed():
 	def __init__(self):
@@ -39,7 +39,10 @@ class watershed():
 		
 def setup_network(in_zones_file = None, zones_layer = None):
 
-	global watersheds
+	global watersheds,temp_folder,temp_gdb
+	
+	temp_folder = tempfile.mkdtemp(prefix = "select_hucs")
+	temp_gdb = arcpy.CreateFileGDB_management(temp_folder,"select_hucs_temp.gdb")
 	
 	sys.setrecursionlimit(6000) # cover a reasonably large huc network
 	
