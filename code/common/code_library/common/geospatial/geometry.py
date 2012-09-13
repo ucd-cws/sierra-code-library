@@ -64,7 +64,6 @@ def simple_centroid_distance(feature1,feature2,spatial_reference):
 		distance = row.getValue("DISTANCE")
 	
 	del reader
-	del row
 	
 	log.write("Centroid Distance is %s" % distance)
 	return distance
@@ -135,22 +134,68 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	
 	return filename
 	
-def get_centroids(feature = None):
+def get_centroids(feature = None,method="FEATURE_TO_POINT"):
+	
+	methods = ("FEATURE_TO_POINT","ATTRIBUTE",) #"MEAN_CENTER","MEDIAN_CENTER")
+	
+	if not method in methods:
+		log.warning("Centroid determination method is not in the set %s" % methods)
+		return []
+	
 	if not feature:
 		raise NameError("get_centroids requires a feature as input")
 	
 	if not check_type(feature,"Polygon"):
 		log.warning("Type of feature in get_centroids is not Polygon")
 		return []
+
+	if method == "ATTRIBUTE":
+		points = centroid_attribute(feature)
+	elif method == "FEATURE_TO_POINT":
+		try:
+			points = centroid_feature_to_point(feature)
+		except:
+			err_str = traceback.format_exc()
+			log.warning("failed to obtain centroids using feature_to_point method. traceback follows:\n %s" % err_str)
+				
+	return points
+
+def centroid_attribute(feature = None):
+	'''for internal use only - gets the centroid using the polygon attribute method - if you want to determine centroids, use get_centroids()'''
 	
 	curs = arcpy.SearchCursor(feature)
 	
 	points = []
 	for record in curs:
 		points.append(record.shape.centroid)
+	
+	return points
+
+def centroid_feature_to_point(feature):
+	t_name = geospatial.generate_fast_filename()
+	
+	arcpy.FeatureToPoint_management(feature, t_name,"CENTROID")
+		
+	curs = arcpy.SearchCursor(t_name) # open up the output
+	
+	points = []
+	for record in curs:
+		points.append(record.shape.getPart()) # get the shape's point
 		
 	return points
+
+def get_centroids_as_file(feature=None,filename = None,spatial_reference = None):
+	'''shortcut function to get the centroids as a file - called functions do error checking'''
 	
+	try:
+		cens = get_centroids(feature)
+		if (len(cens) > 0):
+			return write_features_from_list(cens,data_type="POINT",filename=filename,spatial_reference=spatial_reference)
+		else:
+			return None
+	except:
+		err_str = traceback.format_exc()
+		log.error("Couldn't get centroids into file - traceback follows:\n %s" % err_str)
 	
 def check_type(feature = None ,feature_type = None,return_type = False):
 
@@ -164,7 +209,7 @@ def check_type(feature = None ,feature_type = None,return_type = False):
 	
 	desc = arcpy.Describe(feature)
 	
-	if desc.dataType == "FeatureClass":
+	if desc.dataType == "FeatureClass" or desc.dataType =="FeatureLayer":
 		read_feature_type = desc.shapeType
 	else:
 		log.error("feature parameter supplied to 'check_type' is not a FeatureClass")
