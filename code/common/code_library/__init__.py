@@ -25,7 +25,7 @@ def temp_cleanup():
 	retained = []
 	for dataset in temp_datasets:
 		try:
-			arcpy.Delete(dataset)
+			arcpy.Delete_management(dataset)
 		except:
 			retained.append(dataset)
 			log.warning("Couldn't delete all temporary datasets")
