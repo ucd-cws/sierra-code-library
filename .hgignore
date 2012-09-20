@@ -3,3 +3,4 @@ syntax: glob
 code/raster_extraction/output/*
 *.shelf
 code/raster_extraction/temp.gdb
+*.orig
