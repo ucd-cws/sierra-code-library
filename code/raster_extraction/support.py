@@ -13,7 +13,9 @@ import arcpy
 import log
 import config
 import zonal_stats
+import join_tables
 from code_library.common import geospatial
+from code_library.common.geospatial import geometry
 
 class raster_dataset:
 	def __init__(self, name = None, folder = None):
@@ -87,7 +89,10 @@ def setup(input_dataset):
 		sys.exit()
 		
 	if config.check_zone_size:
-		log.write("WARNING: check_zone_size is set to True. If your data is not all in the same units (as in, your catchments and your rasters should all be in meters, or some standard unit), things WILL BREAK. Either project your data, or set this flag to False in config.",True)
+		log.warning("WARNING: check_zone_size is set to True. If your data is not all in the same units (as in, your catchments and your rasters should all be in meters, or some standard unit), things WILL BREAK. Either project your data, or set this flag to False in config.")
+
+	if config.use_point_estimate:
+		log.warning("CRITICAL WARNING: use_point_estimate is True. Your zone_field should NOT be the primary key (OID) field in this case or problems will occur. No checking will occur.")
 		
 def run_files(file_objects,datasets):
 	'''splits the file into pieces and runs each gdb for it'''
@@ -98,7 +103,7 @@ def run_files(file_objects,datasets):
 		log.error("No temp db and can't create, exiting")
 	
 	num_files = len(file_objects)
-	
+
 	final_tables = []
 	for dataset in datasets:
 		gdb_num = 0
@@ -123,4 +128,37 @@ def run_join(filenames,datasets):
 	
 	for dataset in datasets:
 		join_tables.join(dataset.zonal_stats_files,config.zone_field,config.field_names)
-		
+
+
+def point_estimate(zone_file,raster_gdbs):
+	"""
+	Handles the calling and management of obtaining a zonal-stats like table from a point estimate of a polygon
+	:rtype : str
+	"""
+
+	raster_stack = make_raster_stack(raster_gdbs)
+
+	log.write("Getting Centroids",True)
+	point_objects = geometry.get_centroids_as_file(zone_file,dissolve=False)
+	log.write("Centroid file located at %s" % point_objects,True)
+
+
+	log.write("Getting Point Estimate",True)
+	# modifies the input data
+	arcpy.sa.ExtractMultiValuesToPoints(point_objects,raster_stack,"NONE")
+
+	log.write("Output is at %s" % point_objects, True)
+
+	return point_objects
+
+def make_raster_stack(datasets = []):
+
+	log.write("Collapsing rasters into single stack")
+	rasters = []
+
+	for dataset in datasets:
+		for gdb in dataset.gdbs:
+			for raster in gdb.rasters:
+				rasters.append(os.path.join(gdb.path,raster))
+
+	return rasters

@@ -2,6 +2,8 @@ import os
 
 run_dir = os.getcwd()
 
+use_point_estimate = True # warning: If this is set to true, the zone_field should NOT be the primary key (OID) field
+							# because it will be changed
 zone_field = "NID"
 
 flag_subprocess_zonal_stats = True # default: False - True means that it will run the zonal stats in a subprocess. Slower, but works around some arcgis issues
@@ -9,7 +11,7 @@ flag_subprocess_zonal_stats = True # default: False - True means that it will ru
 bcm_folder = None
 usgs_issues = "usgs_issues"
 usgs_data = "usgs_data"
-current_datasets = {"usgs_issues":usgs_issues}
+current_datasets = {"usgs_data":usgs_data}
 
 # sets whether or not to run zonal stats in a subprocess - not implemented
 use_subprocesses = True
@@ -20,7 +22,7 @@ data_folder = os.path.join(run_dir,"data")
 input_folder = os.path.join(data_folder,"inputs")
 output_folder = os.path.join(run_dir,"output")
 
-input_dataset = os.path.join(input_folder,"dam_catchments","final_dam_catchments.gdb","final_catchments")
+input_dataset = os.path.join(input_folder,"final_dam_catchments.gdb","final_catchments")
 
 datasets_index = {}
 datasets = []

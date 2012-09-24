@@ -33,12 +33,12 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None,d
 		try:
 			all_centroids += get_centroids(feature,dissolve=dissolve) # merge, don't append
 		except:
-			continue 
-	
+			continue
+
 	if len(all_centroids) == 0:
 		log.warning("No centroids generated - something probably went wrong")
 		return False
-	
+
 	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference = spatial_reference)
 	log.write("Point File located at %s" % point_file)
 	out_table = geospatial.generate_gdb_filename("out_table",return_full=True)
@@ -153,8 +153,18 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	
 	return filename
 	
-def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False):
-	
+def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False, as_file=False):
+	"""
+		Given an input polygon, this function returns a list of arcpy.Point objects that represent the centroids
+
+	:param feature: str location of a shapefile or feature class
+	:param method: str indicating the method to use to obtain the centroid. Possible values are "FEATURE_TO_POINT"
+		(default - more accurate) and "ATTRIBUTE" (faster, but error-prone)
+	:param dissolve: boolean flag indicating whether or not to dissolve the input features befor obtaining centroids
+	:param as_file: boolean flag indicating whether to return the data as a file instead of a point list
+	:return: list of arcpy.Point objects
+	:raise:
+	"""
 	methods = ("FEATURE_TO_POINT","ATTRIBUTE",) #"MEAN_CENTER","MEDIAN_CENTER")
 	
 	if not method in methods:
@@ -178,17 +188,26 @@ def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False):
 
 	if method == "ATTRIBUTE":
 		points = centroid_attribute(feature)
+		if as_file:
+			if (len(points) > 0):
+				return_points = write_features_from_list(points,data_type="POINT",filename=None,spatial_reference=feature)
+			else:
+				return_points = None
+
 	elif method == "FEATURE_TO_POINT":
 		try:
-			points = centroid_feature_to_point(feature)
+			if as_file:
+				return_points = centroid_feature_to_point(feature,as_file=True)
+			else:
+				points = centroid_feature_to_point(feature)
 		except:
 			err_str = traceback.format_exc()
 			log.warning("failed to obtain centroids using feature_to_point method. traceback follows:\n %s" % err_str)
-	
-	#if t_name: # if we created a temporary file in memory
-	#	arcpy.Delete_management(t_name) # clean it up - deleting seems to destroy the point objects
-	
-	return points
+
+	if as_file:
+		return return_points
+	else:
+		return points
 
 def centroid_attribute(feature = None):
 	'''for internal use only - gets the centroid using the polygon attribute method - if you want to determine centroids, use get_centroids()'''
@@ -201,11 +220,24 @@ def centroid_attribute(feature = None):
 	
 	return points
 
-def centroid_feature_to_point(feature):
-	t_name = geospatial.generate_fast_filename("feature_to_point")
+def centroid_feature_to_point(feature,as_file=False):
+	"""
+	for internal use only
+
+	:param feature: str feature class
+	:param as_file: boolean indicates whether to return the arcpy file instead of returning the point array
+	:return: list containing arcpy.Point objects
+	"""
+	if as_file:
+		t_name = geospatial.generate_gdb_filename("feature_to_point") # we don't want a memory file if we are returning the filename
+	else:
+		t_name = geospatial.generate_fast_filename("feature_to_point")
 	
 	arcpy.FeatureToPoint_management(feature, t_name,"CENTROID")
-		
+
+	if as_file: #if asfile, return the filename, otherwise, make and return the point_array
+		return t_name
+
 	curs = arcpy.SearchCursor(t_name) # open up the output
 	
 	points = []
@@ -218,14 +250,18 @@ def centroid_feature_to_point(feature):
 	return points
 
 def get_centroids_as_file(feature=None,filename = None,spatial_reference = None,dissolve=True):
-	'''shortcut function to get the centroids as a file - called functions do error checking'''
+	"""shortcut function to get the centroids as a file - called functions do error checking
+
+	This function used to be more necessary, but is now deprecated by the as_file flag on get_centroids
+
+	:param feature: str file path - required
+	:param filename: optional - a filename will be generated
+	
+	:rtype : str file path location to centroids
+	"""
 	
 	try:
-		cens = get_centroids(feature,dissolve=dissolve)
-		if (len(cens) > 0):
-			return write_features_from_list(cens,data_type="POINT",filename=filename,spatial_reference=spatial_reference)
-		else:
-			return None
+		return get_centroids(feature,dissolve=dissolve,as_file = True)
 	except:
 		err_str = traceback.format_exc()
 		log.error("Couldn't get centroids into file - traceback follows:\n %s" % err_str)
