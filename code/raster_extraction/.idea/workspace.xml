@@ -50,7 +50,7 @@
       <file leaf-file-name="support.py" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/support.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="156" column="16" selection-start="5123" selection-end="5123" vertical-scroll-proportion="0.75757575">
+            <state line="150" column="10" selection-start="4940" selection-end="4940" vertical-scroll-proportion="0.65268064">
               <folding>
                 <element signature="e#278#287#0" expanded="true" />
               </folding>
@@ -283,7 +283,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
@@ -408,7 +408,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/support.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="156" column="16" selection-start="5123" selection-end="5123" vertical-scroll-proportion="0.75757575">
+        <state line="150" column="10" selection-start="4940" selection-end="4940" vertical-scroll-proportion="0.65268064">
           <folding>
             <element signature="e#278#287#0" expanded="true" />
           </folding>

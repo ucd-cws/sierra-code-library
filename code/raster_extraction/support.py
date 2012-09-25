@@ -145,7 +145,25 @@ def point_estimate(zone_file,raster_gdbs):
 
 	log.write("Getting Point Estimate",True)
 	# modifies the input data
-	arcpy.sa.ExtractMultiValuesToPoints(point_objects,raster_stack,"NONE")
+	i = 0
+	num_ras = len(raster_stack)
+	for raster in raster_stack:
+		i += 1
+		log.write("Raster %s/%s" % (i,num_ras),True)
+		try:
+			log.write("Operation 1/2",True)
+			# first, copy it out - if it crashes, we don't want to ruin the whole set - we want to be able to move on.
+			new_name = geospatial.generate_gdb_filename("point_est")
+			arcpy.CopyFeatures_management(point_objects,new_name)
+			point_objects = new_name
+		except:
+			log.warning("Failed to copy out points. Not critical unless a crash occurs during this next update")
+
+		try:
+			log.write("Operation 2/2",True)
+			arcpy.sa.ExtractMultiValuesToPoints(point_objects,[raster],"NONE")
+		except:
+			log.warning("Failed to update points with values for raster %s. Continuing" % raster)
 
 	log.write("Output is at %s" % point_objects, True)
 

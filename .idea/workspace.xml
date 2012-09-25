@@ -3,11 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="15809539-b75f-497d-9734-f114ab962e53" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/raster_extraction/log_db.sqlite3" afterPath="$PROJECT_DIR$/code/raster_extraction/log_db.sqlite3" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/common/code_library/common/geospatial/geometry.py" afterPath="$PROJECT_DIR$/code/common/code_library/common/geospatial/geometry.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/raster_extraction/__init__.py" afterPath="$PROJECT_DIR$/code/raster_extraction/__init__.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/raster_extraction/config.py" afterPath="$PROJECT_DIR$/code/raster_extraction/config.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/raster_extraction/.idea/workspace.xml" afterPath="$PROJECT_DIR$/code/raster_extraction/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/raster_extraction/support.py" afterPath="$PROJECT_DIR$/code/raster_extraction/support.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/code/raster_extraction/zonal_stats.py" afterPath="$PROJECT_DIR$/code/raster_extraction/zonal_stats.py" />
     </list>
     <ignored path="code_library.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -286,17 +283,17 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32905984" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32905984" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="true" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.14514408" sideWeight="0.67094016" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.14514408" sideWeight="0.6707589" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32924107" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
