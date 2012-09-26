@@ -24,6 +24,13 @@ html_file = None
 
 is_arc_script = False
 
+def init(arc_script = False, html = True):
+	init_log(arc_script,html)
+
+def initialize(arc_script = False, html = True):
+	init_log(arc_script,html)
+
+
 def init_log(arc_script = False, html = True):
 	
 	log_folder = os.getcwd() #set a default

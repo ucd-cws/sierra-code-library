@@ -1,3 +1,6 @@
+'''as is common, much of this code would be better in a class/object form. It is currently a refactoring of existing code, so this is far
+progressed from the initial implementation. A future version might include a class-based implementation'''
+
 import tempfile
 import traceback
 import sys
@@ -6,9 +9,6 @@ import arcpy
 
 from code_library.common import log #@UnresolvedImport
 from code_library.common import geospatial #@UnresolvedImport
-
-'''as is common, much of this code would be better in a class/object form. It is currently a refactoring of existing code, so this is far
-progressed from the initial implementation. A future version might include a class-based implementation'''
 
 number_selections = 0
 number_selections_threshold = 450 # approximately aligns it with the cleanup for the FGDBs
@@ -37,13 +37,14 @@ class watershed():
 		self.upstream = None # actually [], but we want to check if it's defined
 		self.has_dam = False
 		
-def setup_network(in_zones_file = None, zones_layer = None):
+def setup_network(in_zones_file = None, zones_layer = None, return_copy = False):
 
 	global watersheds,temp_folder,temp_gdb
 	
 	temp_folder = tempfile.mkdtemp(prefix = "select_hucs")
 	temp_gdb = arcpy.CreateFileGDB_management(temp_folder,"select_hucs_temp.gdb")
-	
+
+	log.warning("Warning: Setting system recursion limit to a high number")
 	sys.setrecursionlimit(6000) # cover a reasonably large huc network
 	
 	if in_zones_file:
@@ -66,7 +67,10 @@ def setup_network(in_zones_file = None, zones_layer = None):
 		
 	zones_layer = cleanup_zones(zones_layer,"setup_network")
 
-	return True
+	if return_copy:
+		return watersheds
+	else:
+		return True
 
 def find_upstream(watershed,all_watersheds,dams_flag=False):
 	
@@ -218,10 +222,16 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
 	else:
 		return None
 	
-def grow_selection(features,zones_layer):
-	'''this function takes a selection of hucs and grows the selection to the immediately surrounding hucs
+def grow_selection(features,zones_layer,output_name = None):
+	"""
+	this function takes a selection of hucs and grows the selection to the immediately surrounding hucs
 	so that when we delineate using this layer as a mask, we don't crop out anything important through
-	misalignment'''
+	misalignment
+
+	:param features: selection features
+	:param zones_layer: features to select
+	:param output_name: Optional. If no output name is supplied, one will be generated
+	"""
 	
 	if not zones_layer:
 		return None
@@ -233,8 +243,11 @@ def grow_selection(features,zones_layer):
 		#system.time_check("grow_selection_actual")
 		arcpy.SelectLayerByLocation_management(zones_layer,"BOUNDARY_TOUCHES",features)
 		#elapsed = system.time_report("grow_selection_actual")
-		
-		t_name = arcpy.CreateUniqueName("zones_extent_grow",temp_gdb)
+
+		if output_name:
+			t_name = output_name # if a name is passed in, use it instead
+		else:
+			t_name = arcpy.CreateUniqueName("zones_extent_grow",temp_gdb)
 		
 		#system.time_check("copy_features")
 		arcpy.CopyFeatures_management(zones_layer,t_name)
