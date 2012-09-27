@@ -23,7 +23,7 @@ zones_cleanup = False
 zones_file = None # will be defined by get_zones_file
 
 watersheds = {}
-network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN"]
+network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean"]
 
 huc_layer_cache = {}
 
@@ -163,25 +163,36 @@ def cleanup_zones(zones_layer,cleanup,allow_delete=False):
 	except:
 		pass
 
-def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
+def setup_huc_obj(zone_layer):
+
+	desc = arcpy.Describe(zone_layer)
+	huc_layer_obj = geospatial.data_file(desc.path)
+	check = huc_layer_obj.set_delimiters()
+
+	del desc
+
+	if check is False:
+		log.error("Couldn't determine type of storage or unsupported storage type for file. Can't set up huc network.")
+		cleanup_zones(zone_layer,"select_hucs")
+		return False
+
+	return huc_layer_obj
+
+def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs",geospatial_obj = None):
 	
 	try:
 		log.write("Selecting features")
 		
 		zone_layer = check_zones(zone_layer,"select_hucs")
 		
-		desc = arcpy.Describe(zone_layer)
-		
-		huc_layer_obj = geospatial.data_file(desc.path)
-		check = huc_layer_obj.set_delimiters()
-		
-		del desc
-		
-		if check is False:
-			log.error("Couldn't determine type of storage or unsupported storage type for file. Can't set up huc network.")
-			cleanup_zones(zone_layer,"select_hucs")
-			return None
-		
+		if not geospatial_obj:
+			huc_layer_obj = setup_huc_obj(zone_layer)
+			if huc_layer_obj is False:
+				return False
+		else:
+			huc_layer_obj = geospatial_obj
+			log.write("using passed in geospatial_obj",level="debug")
+
 		#log.write("Selecting HUCs")
 		selection_type = "NEW_SELECTION" # start a new selection, then add to
 		try:
@@ -191,7 +202,6 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
 			for index in range(len(huc_list)): # we have to do this in a loop because building one query to make Arc do it for us produces an error
 				zone_expression = zone_expression + "%s%s%s = '%s' OR " % (huc_layer_obj.delim_open,zones_field,huc_layer_obj.delim_close,huc_list[index]) # brackets are required by Arc for Personal Geodatabases and quotes for FGDBs (that's us!)
 				if index % config_selection_chunk_size == 0 or index == len(huc_list)-1: # Chunking: every nth HUC, we run the selection, OR when we've reached the last one. we're trying to chunk the expression. Arc won't take a big long one, but selecting 1 by 1 is slow
-					log.write(index,True,level="debug") # print the number of selected features
 					zone_expression = zone_expression[:-4] # chop off the trailing " OR "
 					arcpy.SelectLayerByAttribute_management(zone_layer,selection_type,zone_expression)
 					selection_type = "ADD_TO_SELECTION" # set it so that selections accumulate
@@ -252,9 +262,9 @@ def grow_selection(features,zones_layer,output_name = None):
 		#system.time_check("copy_features")
 		arcpy.CopyFeatures_management(zones_layer,t_name)
 		#elapsed = system.time_report("copy_features")
-		
-		print "grew selection"
-		
+
+		log.write("grew_selection")
+
 		return t_name
 	except:
 		return None

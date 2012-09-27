@@ -56,9 +56,8 @@ class huc_issue:
 		self.hu_12_ds = ds
 		self.huc_10 = huc_10
 		self.hu_10_ds = ds10
-		'''items are lists because a huc can end up here for multiple reasons'''
-		self.reason = [reason]
-		self.issue_notes = [issue_notes]
+		self.reason = reason
+		self.issue_notes = issue_notes
 
 	def get_value(self,attribute):
 		"""
@@ -93,31 +92,23 @@ def check_huc_from_row(row):
 	if huc_12_ds not in huc12s_index and huc_12_ds not in huc_network.network_end_hucs:
 		issue = huc_issue(huc_12_id,"ds_dne","Downstream HUC_12 does not exist in this dataset")
 		marked_as_bad.append(issue)
-		issues_index[huc_12_id] = issue
+		issues_index[huc_12_id].append(issue)
 		
 	if row.getValue(hu10_ds_key) not in huc10s_index and row.getValue(hu10_ds_key) not in huc_network.network_end_hucs:
 		message = "Downstream HUC_10 does not exist in this dataset"
 		reason = "10_ds_dne"
-		
-		if huc_12_id in issues_index:
-			issues_index[huc_12_id].reason.append(reason)
-			issues_index[huc_12_id].issue_notes.append(message)
-		else:
-			issue = huc_issue(huc_12_id,reason,message,huc_10 = row.getValue(hu10_key))
-			marked_as_bad.append(issue)
-			issues_index[huc_12_id] = issue
+
+		issue = huc_issue(huc_12_id,reason,message,huc_10 = row.getValue(hu10_key))
+		marked_as_bad.append(issue)
+		issues_index[huc_12_id].append(issue)
 		
 	if row.getValue(hu10_key) not in huc_12_ds and row.getValue(hu10_ds_key) not in huc_12_ds:
 		message = "Downstream HUC_12 is not within the current HUC_10 or the downstream HUC_10 - possible problem with any of those attributes"
 		reason = "ds_not_within"
-		
-		if huc_12_id in issues_index:
-			issues_index[huc_12_id].reason.append(reason)
-			issues_index[huc_12_id].issue_notes.append(message)
-		else:
-			issue = huc_issue(huc_12_id,reason,message,huc_10 = row.getValue(hu10_key))
-			marked_as_bad.append(issue)
-			issues_index[huc_12_id] = issue
+
+		issue = huc_issue(huc_12_id,reason,message,huc_10 = row.getValue(hu10_key))
+		marked_as_bad.append(issue)
+		issues_index[huc_12_id].append(issue)
 
 def check_hucs(feature_class):
 
@@ -130,7 +121,7 @@ def check_hucs(feature_class):
 			log.write("%s processed" % i, True)
 		check_huc_from_row(row)
 
-def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field):
+def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field, geospatial_obj):
 	"""
 	takes the huc, gets the huc 12, does a boundary touches new selection on the feature_layer - returns a huc_issue or True
 
@@ -138,6 +129,7 @@ def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field):
 	:param feature_layer: the layer to use to check it against
 	:param zone_network: A network of these zones as created by huc_network.setup_network
 	:param key_field: The field that holds the ids
+	:param geospatial_obj: Saves some time by performing a function once, then passing it into the select_hucs
 
 	"""
 
@@ -146,14 +138,19 @@ def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field):
 		raise ValueError("Missing parameters to check_boundary_from_id")
 
 	try:
-		huc_network.select_hucs([zone_id],feature_layer,copy_out=False)
+		checked = huc_network.select_hucs([zone_id],feature_layer,copy_out=False,geospatial_obj=geospatial_obj)
 	except:
 		log.error("Couldn't select initial zone for boundary check. Zone ID = %s" % zone_id)
+		raise
+
+	if checked and checked is None:
+		raise RuntimeError("Couldn't run boundary touches test")
 
 	try:
 		huc_network.grow_selection(feature_layer,feature_layer)
 	except:
 		log.error("Couldn't grow selection for boundary check. Zone ID = %s" % zone_id)
+		raise
 
 	bound_curs = arcpy.SearchCursor(feature_layer)
 
@@ -173,6 +170,7 @@ def check_boundaries(feature_class, key_list, zone_network, key_field):
 	"""
 
 	log.write("Checking boundaries",True)
+	log.warning("This could take some time, depending on the number of zones you're checking and the beefiness of your computer. A good estimate is a few hours to many days. You may want to go get a cup of coffee, take a nap, or possibly go on vacation")
 
 	try:
 		f_layer = "huc_layer"
@@ -181,13 +179,32 @@ def check_boundaries(feature_class, key_list, zone_network, key_field):
 		log.error("Couldn't create feature layer to check boundaries")
 		raise
 
+	geospatial_obj = huc_network.setup_huc_obj(f_layer)
+
+	i = 1
 	for feature_id in key_list:
-		ds_ok = check_boundary_from_id(feature_id,f_layer,zone_network, key_field)
+		if (i % 20) == 0:
+			log.write(i,True)
+		i+= 1
+
+		try:
+			ds_ok = check_boundary_from_id(feature_id,f_layer,zone_network, key_field,geospatial_obj)
+
+		except RuntimeError as e:
+			issue = huc_issue(feature_id,"test_fail",str(e))
+			marked_as_bad.append(issue)
+			issues_index[feature_id].append(issue)
+			break # break instead of continue - we don't want multiple errors and the results will be incomplete
+		except:
+			issue = huc_issue(feature_id,"test_fail","Couldn't run boundary touches check")
+			marked_as_bad.append(issue)
+			issues_index[feature_id].append(issue)
+			break # break instead of continue - we don't want multiple errors and the results will be incomplete
+
 		if not ds_ok:
 			issue = huc_issue(feature_id,"ds_does_not_touch","The downstream zone does not touch this zone.",)
 			marked_as_bad.append(issue)
-			issues_index[feature_id] = issue
-
+			issues_index[feature_id].append(issue)
 
 def load_features(feature_class):
 	temp_features = geospatial.generate_fast_filename("huc_layer")
@@ -208,7 +225,7 @@ def load_features(feature_class):
 def attach_errors(feature_class,issues,add_cols = (("error_reason_code","TEXT", "reason"),("description","TEXT","issue_notes"))):
 	for column in add_cols:
 		try:
-			arcpy.AddField_management(feature_class,column[0],column[1])
+			arcpy.AddField_management(feature_class,column[0],column[1],'','',65535)
 		except:
 			log.error("Couldn't create field with name %s on the output" % column[0])
 			raise
@@ -216,11 +233,14 @@ def attach_errors(feature_class,issues,add_cols = (("error_reason_code","TEXT", 
 	attach_curs = arcpy.UpdateCursor(feature_class)
 
 	for row in attach_curs: # got hrough all the rows
-		if issues.has_key(row.getValue(key_field)): # and if we have an issue
-			for col in add_cols: # go through the columns to attach and add them
-				t_issue = issues[row.getValue(key_field)] # just to clean it up a bit
-				row.setValue(col[0],t_issue.get_value(col[2])) # set the value on the field specified to the issue in the index's value of attribute specified in col[2]
-				attach_curs.updateRow(row) # save it!
+		for col in add_cols: # go through the columns to attach and add them
+			t_issues = issues[row.getValue(key_field)] # just to clean the code up  a bit = this retrieves the issues for this zone
+			attach_str = ""
+			for issue in t_issues:
+				attach_str = "%s, %s" % (attach_str,issue.get_value(col[2]))
+
+			row.setValue(col[0],attach_str) # set the value on the field specified to the issue in the index's value of attribute specified in col[2]
+			attach_curs.updateRow(row) # save it!
 
 
 try:
@@ -239,6 +259,7 @@ huc_curs = arcpy.SearchCursor(temp_features)
 for row in huc_curs:
 	huc12s_index.append(row.getValue(key_field))
 	huc10s_index.append(row.getValue(hu10_key))
+	issues_index[row.getValue(key_field)] = [] # set this up for every huc
 del huc_curs
 
 log.write("Conducting Basic Check",True)
@@ -262,8 +283,11 @@ except:
 	full_out_path = temp_features # redirect the output path because we're about to use it to create the feature layer
 
 # and then set the output
-output_layer = "CheckedZones"
-arcpy.MakeFeatureLayer_management(full_out_path,output_layer)
+output_layer = out_name
+try:
+	arcpy.MakeFeatureLayer_management(full_out_path,output_layer)
+except:
+	log.error("Output layer name already exists - output is at %s" % full_out_path)
 
 log.write("Layer checked. Note that caught errors MAY NOT encompass all errors on the downstream attributes for this layer, but caught errors should find genuine issues. You should run this tool again after making any corrections as previously unreported issues may then be caught",True)
 arcpy.SetParameter(5,output_layer)
