@@ -179,6 +179,7 @@ def check_boundaries(feature_class, key_list, zone_network, key_field):
 		log.error("Couldn't create feature layer to check boundaries")
 		raise
 
+	log.write("Setting up the data file",level="debug")
 	geospatial_obj = huc_network.setup_huc_obj(f_layer)
 
 	i = 1
@@ -214,12 +215,12 @@ def load_features(feature_class):
 		log.warning("Couldn't copy features to memory - trying to copy to disk")
 		original_except = traceback.format_exc()
 		try:
-			temp_features= geospatial.generate_fast_filename(return_full = True)
+			temp_features= geospatial.generate_gdb_filename(return_full = True)
 			arcpy.CopyFeatures_management(feature_class,temp_features)
 		except:
 			log.error("Can't make a copy of the features - %s" % original_except)
 			raise
-	log.write("Features copied",True)
+	log.write("Features copied to %s" % temp_features,True)
 	return temp_features
 
 def attach_errors(feature_class,issues,add_cols = (("error_reason_code","TEXT", "reason"),("description","TEXT","issue_notes"))):
@@ -237,7 +238,7 @@ def attach_errors(feature_class,issues,add_cols = (("error_reason_code","TEXT", 
 			t_issues = issues[row.getValue(key_field)] # just to clean the code up  a bit = this retrieves the issues for this zone
 			attach_str = ""
 			for issue in t_issues:
-				attach_str = "%s, %s" % (attach_str,issue.get_value(col[2]))
+				attach_str = "%s %s," % (attach_str,issue.get_value(col[2]))
 
 			row.setValue(col[0],attach_str) # set the value on the field specified to the issue in the index's value of attribute specified in col[2]
 			attach_curs.updateRow(row) # save it!

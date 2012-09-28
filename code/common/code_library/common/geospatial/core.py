@@ -158,7 +158,9 @@ class data_file(geospatial_object):
 		self.data_location = filename
 		
 	def set_delimiters(self):
-		
+
+		log.write("Setting delimiters",level="debug")
+
 		try:
 			fc_info = arcpy.ParseTableName(self.data_location)
 			database, owner, featureclass = fc_info.split(",")
@@ -168,16 +170,16 @@ class data_file(geospatial_object):
 		
 		log.write("Type from ParseTableName = %s" % featureclass, level="debug")
 		
-		if re.match(" mdb",featureclass) is not None:
+		if re.match(" mdb",featureclass) is not None or re.search("\.mdb",featureclass) is not None:
 			self.delim_open = delims_open['mdb']
 			self.delim_close = delims_close['mdb']
-		elif re.match(" gdb",featureclass) is not None:
+		elif re.match(" gdb",featureclass) is not None or re.search("\.gdb",featureclass) is not None:
 			self.delim_open = delims_open['gdb']
 			self.delim_close = delims_close['gdb']
-		elif re.match(" shp",featureclass) is not None:
+		elif re.match(" shp",featureclass) is not None or re.search("\.shp",featureclass) is not None:
 			self.delim_open = delims_open['shp']
 			self.delim_close = delims_close['shp']
-		elif re.match(" in_memory",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
+		elif re.match(" in_memory",featureclass) is not None or re.search("in_memory",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
 			self.delim_open = delims_open['in_memory']
 			self.delim_close = delims_close['in_memory']
 		elif re.match(" sde",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
