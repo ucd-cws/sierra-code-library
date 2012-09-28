@@ -20,16 +20,19 @@ from code_library.common import huc_network # need it for network_end_hucs
 
 log.initialize(arc_script=True,html=True)
 
+# primary parameters
 layer = arcpy.GetParameterAsText(0)
 method = arcpy.GetParameterAsText(1)
 output_gdb = arcpy.GetParameterAsText(2)
+output_filename = arcpy.GetParameterAsText(3)
 
-key_field = arcpy.GetParameterAsText(3)
+
+key_field = arcpy.GetParameterAsText(4)
 if not key_field:
 	log.write("Setting key field to %s" % huc_network.zones_field)
 	key_field = huc_network.zones_field
 
-ds_field = arcpy.GetParameterAsText(4)
+ds_field = arcpy.GetParameterAsText(5)
 if not ds_field:
 	log.write("Setting DS field to %s" % huc_network.ds_field)
 	ds_field = huc_network.ds_field
@@ -49,6 +52,9 @@ huc10s_index = []
 marked_as_bad = []
 watersheds = {}
 issues_index = {}
+
+reload_interval = 100 # specifies how often to reload the layer of zones as a feature Layer - # much higher than 100 can
+					# lead to slowdowns and much lower may be unnecessary
 
 class huc_issue:
 	def __init__(self,huc_12 = None,reason = None,issue_notes = None,huc_10 = None, ds = None, ds10 = None):
@@ -121,6 +127,34 @@ def check_hucs(feature_class):
 			log.write("%s processed" % i, True)
 		check_huc_from_row(row)
 
+def reset_feature_layer(feature_class,layer_name = None):
+	"""
+		Remakes the feature layer for the given feature class and layer name.
+
+		Arcpy selections tend to get slower as more of them are done, so remaking it periodically (~100 selections)
+		greatly helps with speed
+
+	:param feature_class: The feature class to make into a feature layer
+	:param layer_name: The layer name to check
+	:return: layer_name
+	"""
+
+	log.warning("Reloading zones_layer",False)
+
+	try:
+		if arcpy.Exists(layer_name):
+			arcpy.Delete_management(layer_name)
+	except:
+		log.error("Had trouble deleting or detecting existence of feature layer. Proceeding, but the next step may fail")
+
+	try:
+		arcpy.MakeFeatureLayer_management(feature_class,layer_name)
+	except:
+		log.error("Couldn't create feature layer to check boundaries")
+		raise
+
+	return layer_name
+
 def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field, geospatial_obj):
 	"""
 	takes the huc, gets the huc 12, does a boundary touches new selection on the feature_layer - returns a huc_issue or True
@@ -172,24 +206,24 @@ def check_boundaries(feature_class, key_list, zone_network, key_field):
 	log.write("Checking boundaries",True)
 	log.warning("This could take some time, depending on the number of zones you're checking and the beefiness of your computer. A good estimate is a few hours to many days. You may want to go get a cup of coffee, take a nap, or possibly go on vacation")
 
-	try:
-		f_layer = "huc_layer"
-		arcpy.MakeFeatureLayer_management(feature_class,f_layer)
-	except:
-		log.error("Couldn't create feature layer to check boundaries")
-		raise
-
 	log.write("Setting up the data file",level="debug")
-	geospatial_obj = huc_network.setup_huc_obj(f_layer)
+	geospatial_obj = huc_network.setup_huc_obj(feature_class)
 
 	i = 1
+
+	feature_layer = reset_feature_layer(feature_class, "f_layer") # get it to start with
+
 	for feature_id in key_list:
-		if (i % 20) == 0:
+		if (i % 10) == 0:
 			log.write(i,True)
+
+		if (i % reload_interval) == 0:
+			feature_layer = reset_feature_layer(feature_class, "f_layer")
+
 		i+= 1
 
 		try:
-			ds_ok = check_boundary_from_id(feature_id,f_layer,zone_network, key_field,geospatial_obj)
+			ds_ok = check_boundary_from_id(feature_id,feature_layer,zone_network, key_field,geospatial_obj)
 
 		except RuntimeError as e:
 			issue = huc_issue(feature_id,"test_fail",str(e))
@@ -275,8 +309,10 @@ log.write("Attaching Information to Zones",True)
 attach_errors(temp_features,issues_index,(("error_reason_code","TEXT", "reason"),("description","TEXT","issue_notes")))
 
 log.write("Copying Out Layer",True)
-out_name = arcpy.CreateUniqueName("check_zones",output_gdb)
+out_name = arcpy.CreateUniqueName(output_filename,output_gdb) # make sure it's unique
 full_out_path = os.path.join(output_gdb,out_name)
+
+log.write("Output will go to %s" % full_out_path)
 try:
 	arcpy.CopyFeatures_management(temp_features,full_out_path)
 except:
@@ -288,10 +324,10 @@ output_layer = out_name
 try:
 	arcpy.MakeFeatureLayer_management(full_out_path,output_layer)
 except:
-	log.error("Output layer name already exists - output is at %s" % full_out_path)
+	log.error("Output layer name already exists OR not running in arcmap - output is at %s" % full_out_path)
 
-log.write("Layer checked. Note that caught errors MAY NOT encompass all errors on the downstream attributes for this layer, but caught errors should find genuine issues. You should run this tool again after making any corrections as previously unreported issues may then be caught",True)
-arcpy.SetParameter(5,output_layer)
+log.write("\nLayer checked. Note that caught errors MAY NOT encompass all errors on the downstream attributes for this layer, but caught errors should find genuine issues. You should run this tool again after making any corrections as previously unreported issues may then be caught",True)
+arcpy.SetParameter(6,output_layer)
 
 		
 	

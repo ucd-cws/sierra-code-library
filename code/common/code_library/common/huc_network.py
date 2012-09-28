@@ -148,14 +148,14 @@ def cleanup_zones(zones_layer,cleanup,allow_delete=False):
 	
 	try:
 		if zones_layer_name == zones_layer and zones_cleanup == cleanup:
-			#log.write("Destroying Zones Layer",True)
+			log.write("Destroying Zones Layer")
 			arcpy.Delete_management(zones_layer)
 			zones_layer_name = None
 			zones_cleanup = False
 		elif number_selections > number_selections_threshold and allow_delete is True: # allow delete flags that we're between ops so we don't do it at a terrible time on accident
 			
 			# after running a bunch of selections, it gets slow, so destroy it and make a new one
-			#log.write("Reloading Zones",True)
+			log.write("Reloading Zones")
 			arcpy.Delete_management(zones_layer)
 			zones_layer_name = None
 			number_selections = 0
