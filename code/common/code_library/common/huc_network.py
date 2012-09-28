@@ -232,7 +232,7 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs",geo
 	else:
 		return None
 	
-def grow_selection(features,zones_layer,output_name = None):
+def grow_selection(features,zones_layer,output_name = None,copy_out=True):
 	"""
 	this function takes a selection of hucs and grows the selection to the immediately surrounding hucs
 	so that when we delineate using this layer as a mask, we don't crop out anything important through
@@ -254,14 +254,15 @@ def grow_selection(features,zones_layer,output_name = None):
 		arcpy.SelectLayerByLocation_management(zones_layer,"BOUNDARY_TOUCHES",features)
 		#elapsed = system.time_report("grow_selection_actual")
 
-		if output_name:
-			t_name = output_name # if a name is passed in, use it instead
-		else:
-			t_name = arcpy.CreateUniqueName("zones_extent_grow",temp_gdb)
-		
-		#system.time_check("copy_features")
-		arcpy.CopyFeatures_management(zones_layer,t_name)
-		#elapsed = system.time_report("copy_features")
+		if copy_out:
+			if output_name:
+				t_name = output_name # if a name is passed in, use it instead
+			else:
+				t_name = arcpy.CreateUniqueName("zones_extent_grow",temp_gdb)
+
+			#system.time_check("copy_features")
+			arcpy.CopyFeatures_management(zones_layer,t_name)
+			#elapsed = system.time_report("copy_features")
 
 		log.write("grew_selection")
 
