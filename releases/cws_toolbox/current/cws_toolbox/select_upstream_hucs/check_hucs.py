@@ -181,7 +181,7 @@ def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field, geos
 		raise RuntimeError("Couldn't run boundary touches test")
 
 	try:
-		huc_network.grow_selection(feature_layer,feature_layer)
+		huc_network.grow_selection(feature_layer,feature_layer,copy_out=False)
 	except:
 		log.error("Couldn't grow selection for boundary check. Zone ID = %s" % zone_id)
 		raise

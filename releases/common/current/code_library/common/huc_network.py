@@ -1,3 +1,6 @@
+'''as is common, much of this code would be better in a class/object form. It is currently a refactoring of existing code, so this is far
+progressed from the initial implementation. A future version might include a class-based implementation'''
+
 import tempfile
 import traceback
 import sys
@@ -6,9 +9,6 @@ import arcpy
 
 from code_library.common import log #@UnresolvedImport
 from code_library.common import geospatial #@UnresolvedImport
-
-'''as is common, much of this code would be better in a class/object form. It is currently a refactoring of existing code, so this is far
-progressed from the initial implementation. A future version might include a class-based implementation'''
 
 number_selections = 0
 number_selections_threshold = 450 # approximately aligns it with the cleanup for the FGDBs
@@ -23,7 +23,7 @@ zones_cleanup = False
 zones_file = None # will be defined by get_zones_file
 
 watersheds = {}
-network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN"]
+network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean"]
 
 huc_layer_cache = {}
 
@@ -37,13 +37,14 @@ class watershed():
 		self.upstream = None # actually [], but we want to check if it's defined
 		self.has_dam = False
 		
-def setup_network(in_zones_file = None, zones_layer = None):
+def setup_network(in_zones_file = None, zones_layer = None, return_copy = False):
 
 	global watersheds,temp_folder,temp_gdb
 	
 	temp_folder = tempfile.mkdtemp(prefix = "select_hucs")
 	temp_gdb = arcpy.CreateFileGDB_management(temp_folder,"select_hucs_temp.gdb")
-	
+
+	log.warning("Warning: Setting system recursion limit to a high number")
 	sys.setrecursionlimit(6000) # cover a reasonably large huc network
 	
 	if in_zones_file:
@@ -66,7 +67,10 @@ def setup_network(in_zones_file = None, zones_layer = None):
 		
 	zones_layer = cleanup_zones(zones_layer,"setup_network")
 
-	return True
+	if return_copy:
+		return watersheds
+	else:
+		return True
 
 def find_upstream(watershed,all_watersheds,dams_flag=False):
 	
@@ -144,14 +148,14 @@ def cleanup_zones(zones_layer,cleanup,allow_delete=False):
 	
 	try:
 		if zones_layer_name == zones_layer and zones_cleanup == cleanup:
-			#log.write("Destroying Zones Layer",True)
+			log.write("Destroying Zones Layer")
 			arcpy.Delete_management(zones_layer)
 			zones_layer_name = None
 			zones_cleanup = False
 		elif number_selections > number_selections_threshold and allow_delete is True: # allow delete flags that we're between ops so we don't do it at a terrible time on accident
 			
 			# after running a bunch of selections, it gets slow, so destroy it and make a new one
-			#log.write("Reloading Zones",True)
+			log.write("Reloading Zones")
 			arcpy.Delete_management(zones_layer)
 			zones_layer_name = None
 			number_selections = 0
@@ -159,25 +163,36 @@ def cleanup_zones(zones_layer,cleanup,allow_delete=False):
 	except:
 		pass
 
-def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
+def setup_huc_obj(zone_layer):
+
+	desc = arcpy.Describe(zone_layer)
+	huc_layer_obj = geospatial.data_file(desc.path)
+	check = huc_layer_obj.set_delimiters()
+
+	del desc
+
+	if check is False:
+		log.error("Couldn't determine type of storage or unsupported storage type for file. Can't set up huc network.")
+		cleanup_zones(zone_layer,"select_hucs")
+		return False
+
+	return huc_layer_obj
+
+def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs",geospatial_obj = None):
 	
 	try:
 		log.write("Selecting features")
 		
 		zone_layer = check_zones(zone_layer,"select_hucs")
 		
-		desc = arcpy.Describe(zone_layer)
-		
-		huc_layer_obj = geospatial.data_file(desc.path)
-		check = huc_layer_obj.set_delimiters()
-		
-		del desc
-		
-		if check is False:
-			log.error("Couldn't determine type of storage or unsupported storage type for file. Can't set up huc network.")
-			cleanup_zones(zone_layer,"select_hucs")
-			return None
-		
+		if not geospatial_obj:
+			huc_layer_obj = setup_huc_obj(zone_layer)
+			if huc_layer_obj is False:
+				return False
+		else:
+			huc_layer_obj = geospatial_obj
+			log.write("using passed in geospatial_obj",level="debug")
+
 		#log.write("Selecting HUCs")
 		selection_type = "NEW_SELECTION" # start a new selection, then add to
 		try:
@@ -187,7 +202,6 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
 			for index in range(len(huc_list)): # we have to do this in a loop because building one query to make Arc do it for us produces an error
 				zone_expression = zone_expression + "%s%s%s = '%s' OR " % (huc_layer_obj.delim_open,zones_field,huc_layer_obj.delim_close,huc_list[index]) # brackets are required by Arc for Personal Geodatabases and quotes for FGDBs (that's us!)
 				if index % config_selection_chunk_size == 0 or index == len(huc_list)-1: # Chunking: every nth HUC, we run the selection, OR when we've reached the last one. we're trying to chunk the expression. Arc won't take a big long one, but selecting 1 by 1 is slow
-					log.write(index,True,level="debug") # print the number of selected features
 					zone_expression = zone_expression[:-4] # chop off the trailing " OR "
 					arcpy.SelectLayerByAttribute_management(zone_layer,selection_type,zone_expression)
 					selection_type = "ADD_TO_SELECTION" # set it so that selections accumulate
@@ -218,10 +232,16 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs"):
 	else:
 		return None
 	
-def grow_selection(features,zones_layer):
-	'''this function takes a selection of hucs and grows the selection to the immediately surrounding hucs
+def grow_selection(features,zones_layer,output_name = None,copy_out=True):
+	"""
+	this function takes a selection of hucs and grows the selection to the immediately surrounding hucs
 	so that when we delineate using this layer as a mask, we don't crop out anything important through
-	misalignment'''
+	misalignment
+
+	:param features: selection features
+	:param zones_layer: features to select
+	:param output_name: Optional. If no output name is supplied, one will be generated
+	"""
 	
 	if not zones_layer:
 		return None
@@ -233,15 +253,19 @@ def grow_selection(features,zones_layer):
 		#system.time_check("grow_selection_actual")
 		arcpy.SelectLayerByLocation_management(zones_layer,"BOUNDARY_TOUCHES",features)
 		#elapsed = system.time_report("grow_selection_actual")
-		
-		t_name = arcpy.CreateUniqueName("zones_extent_grow",temp_gdb)
-		
-		#system.time_check("copy_features")
-		arcpy.CopyFeatures_management(zones_layer,t_name)
-		#elapsed = system.time_report("copy_features")
-		
-		print "grew selection"
-		
+
+		if copy_out:
+			if output_name:
+				t_name = output_name # if a name is passed in, use it instead
+			else:
+				t_name = arcpy.CreateUniqueName("zones_extent_grow",temp_gdb)
+
+			#system.time_check("copy_features")
+			arcpy.CopyFeatures_management(zones_layer,t_name)
+			#elapsed = system.time_report("copy_features")
+
+		log.write("grew_selection")
+
 		return t_name
 	except:
 		return None
