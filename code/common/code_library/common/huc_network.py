@@ -254,6 +254,8 @@ def grow_selection(features,zones_layer,output_name = None,copy_out=True):
 		arcpy.SelectLayerByLocation_management(zones_layer,"BOUNDARY_TOUCHES",features)
 		#elapsed = system.time_report("grow_selection_actual")
 
+		log.write("grew_selection")
+
 		if copy_out:
 			if output_name:
 				t_name = output_name # if a name is passed in, use it instead
@@ -264,11 +266,14 @@ def grow_selection(features,zones_layer,output_name = None,copy_out=True):
 			arcpy.CopyFeatures_management(zones_layer,t_name)
 			#elapsed = system.time_report("copy_features")
 
-		log.write("grew_selection")
+			log.write("Saved selection",level="debug")
 
-		return t_name
+			return t_name
+
 	except:
 		return None
+
+	return None # if we get here, return None
 	
 def get_mask(feature):
 	'''given an input feature, it finds the full potential upstream area and returns a
