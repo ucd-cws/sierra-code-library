@@ -1,5 +1,6 @@
-This code lives in the map document SRSS_b.mxd (make a toolbar, go to the add function to toolbar area, then search for "Visual Basic" and add that button, then click it to bring up the code). 
-It was originally written for an older version of ArcMap, and does not work in version 10.0 without effort to port the code forward.
+This code lives in the map document SRSS_b.mxd in a button called "Run SRSS"
+
+It was originally written for an older version of ArcMap, and was ported by the author (Nate Roth at ICE) to ArcGIS 10.0.
 
 The code is VBA, written by Nate Roth at ICE. It requires a (free) VBA license for ArcMap as well as separate installation of the VBA tools from the ArcGIS Desktop disk
 
