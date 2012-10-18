@@ -290,3 +290,15 @@ def get_spatial_reference(dataset = None):
 	del desc
 	
 	return sr
+
+def fast_dissolve(features,raise_error = True,base_name="dissolved"):
+	out_name = generate_gdb_filename(base_name)
+	try:
+		arcpy.Dissolve_management(features,out_name)
+	except:
+		if raise_error is False:
+			log.warning("Couldn't dissolve. Returning non-dissolved layer")
+			return features
+		else:
+			raise
+	return out_name

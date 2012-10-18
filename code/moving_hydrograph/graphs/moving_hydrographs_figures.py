@@ -9,7 +9,7 @@ from matplotlib import mlab
 from code_library.common import log
 
 frame_size = (2048,1536)
-output_dpi = 150
+output_dpi = 150 # matplotlib didn't seem to like me setting this to 300
 header_row_num = 1 # what row is the header on - starts at 1
 date_field = "date" # these should all be lowercase or numpy CHOKES
 flow_field = "stage"
@@ -89,7 +89,10 @@ plot_items.append(plot_series(flow_field,"#5829d4","#8859ff"))
 
 plot_items[0].inbound_shared.append(plot_items[1])
 plot_items[0].use_moving_average = True
-plot_items[0].moving_average_size = 24
+plot_items[0].moving_average_size = 36
+
+plot_items[1].use_moving_average = True
+plot_items[1].moving_average_size = 36
 
 # divides the size in pixels by the dpi to get the sizes in inches as a tuple. Uses int() for rounding because it doesn't
 # need to be incredibly accurate.
@@ -137,6 +140,7 @@ def setup_data(data,plot_items):
 
 		item.ymin = numpy.min(item.data)
 		item.ymax = numpy.max(item.data)
+		print "(%s,%s)" % (item.ymin,item.ymax)
 
 	for item in plot_items:
 		# now that they're all set, run through it again
@@ -145,7 +149,8 @@ def setup_data(data,plot_items):
 			print "Setting ymax for item with shared Y axis"
 			for other_item in item.inbound_shared: # run through all of them, but only set it for this item
 				item.ymax = max(item.ymax,other_item.ymax)
-				item.ymin = max(item.ymin,other_item.ymin)
+				item.ymin = min(item.ymin,other_item.ymin)
+				print "transformed to (%s,%s)" % (item.ymin,item.ymax)
 
 
 out_folder = os.path.join(os.getcwd(),output_folder)
@@ -212,7 +217,10 @@ for site in sites:
 			xmax = fake_dates[-1]
 
 			item.axis.set_xlim(xmin, xmax)
-			item.axis.set_ylim(item.ymin,item.ymax*1.1)
+			if item.shared_axis:
+				item.axis.set_ylim(item.shared_axis.ymin,item.shared_axis.ymax*1.1) # the shared axis instance has the true min/max
+			else:
+				item.axis.set_ylim(item.ymin,item.ymax*1.1)
 		
 		# set up the chart
 		#datemin = dt.date(r.date.min().year, 1, 1)
