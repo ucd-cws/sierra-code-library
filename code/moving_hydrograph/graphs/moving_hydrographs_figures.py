@@ -1,4 +1,4 @@
-import datetime as dt
+import datetime
 import os
 
 import numpy
@@ -85,14 +85,11 @@ class plot_series:
 plot_items = []
 plot_items.append(plot_series("air_temp","#68c439","#98f469"))
 plot_items.append(plot_series("water_temp",past_color,"#f49869",shared_axis = plot_items[0]))
-plot_items.append(plot_series(flow_field,"#5829d4","#8859ff"))
+plot_items.append(plot_series(flow_field,"#4829e4","#8859ff"))
 
 plot_items[0].inbound_shared.append(plot_items[1])
 plot_items[0].use_moving_average = True
-plot_items[0].moving_average_size = 36
-
-plot_items[1].use_moving_average = True
-plot_items[1].moving_average_size = 36
+plot_items[0].moving_average_size = 24
 
 # divides the size in pixels by the dpi to get the sizes in inches as a tuple. Uses int() for rounding because it doesn't
 # need to be incredibly accurate.
@@ -187,8 +184,11 @@ for site in sites:
 			dates[inc] = convert_bad_date(dates[inc])
 		print "Dates converted"
 	
-	for i,d in enumerate(data[date_field]): # for every timestep
-		
+	for i,date_object in enumerate(data[date_field]): # for every timestep
+		if date_object.hour > 21 or date_object.hour < 5: # don't output nighttime graphs
+			log.write("Skipping hour %s" % date_object.hour,True)
+			continue
+
 		# create the figure
 		fig = pyplot.figure(figsize=output_size_in,dpi=output_dpi) # these kwargs are for display only; see 'savefig' below
 
@@ -233,7 +233,7 @@ for site in sites:
 		# ax.grid()
 		
 		# save the figure
-		figname = '%s_%s.png' % (fname, d)
+		figname = '%s_%s.png' % (fname, date_object)
 		
 		# save the figure; set transparency
 		

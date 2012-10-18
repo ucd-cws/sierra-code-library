@@ -1,4 +1,4 @@
-import datetime as dt
+import datetime
 import os
 
 import numpy
@@ -9,7 +9,7 @@ from matplotlib import mlab
 from code_library.common import log
 
 frame_size = (2048,1536)
-output_dpi = 150
+output_dpi = 150 # matplotlib didn't seem to like me setting this to 300
 header_row_num = 1 # what row is the header on - starts at 1
 date_field = "date" # these should all be lowercase or numpy CHOKES
 flow_field = "stage"
@@ -85,7 +85,7 @@ class plot_series:
 plot_items = []
 plot_items.append(plot_series("air_temp","#68c439","#98f469"))
 plot_items.append(plot_series("water_temp",past_color,"#f49869",shared_axis = plot_items[0]))
-plot_items.append(plot_series(flow_field,"#5829d4","#8859ff"))
+plot_items.append(plot_series(flow_field,"#4829e4","#8859ff"))
 
 plot_items[0].inbound_shared.append(plot_items[1])
 plot_items[0].use_moving_average = True
@@ -137,6 +137,7 @@ def setup_data(data,plot_items):
 
 		item.ymin = numpy.min(item.data)
 		item.ymax = numpy.max(item.data)
+		print "(%s,%s)" % (item.ymin,item.ymax)
 
 	for item in plot_items:
 		# now that they're all set, run through it again
@@ -145,7 +146,8 @@ def setup_data(data,plot_items):
 			print "Setting ymax for item with shared Y axis"
 			for other_item in item.inbound_shared: # run through all of them, but only set it for this item
 				item.ymax = max(item.ymax,other_item.ymax)
-				item.ymin = max(item.ymin,other_item.ymin)
+				item.ymin = min(item.ymin,other_item.ymin)
+				print "transformed to (%s,%s)" % (item.ymin,item.ymax)
 
 
 out_folder = os.path.join(os.getcwd(),output_folder)
@@ -182,8 +184,11 @@ for site in sites:
 			dates[inc] = convert_bad_date(dates[inc])
 		print "Dates converted"
 	
-	for i,d in enumerate(data[date_field]): # for every timestep
-		
+	for i,date_object in enumerate(data[date_field]): # for every timestep
+		if date_object.hour > 21 or date_object.hour < 5: # don't output nighttime graphs
+			log.write("Skipping hour %s" % date_object.hour,True)
+			continue
+
 		# create the figure
 		fig = pyplot.figure(figsize=output_size_in,dpi=output_dpi) # these kwargs are for display only; see 'savefig' below
 
@@ -212,7 +217,10 @@ for site in sites:
 			xmax = fake_dates[-1]
 
 			item.axis.set_xlim(xmin, xmax)
-			item.axis.set_ylim(item.ymin,item.ymax*1.1)
+			if item.shared_axis:
+				item.axis.set_ylim(item.shared_axis.ymin,item.shared_axis.ymax*1.1) # the shared axis instance has the true min/max
+			else:
+				item.axis.set_ylim(item.ymin,item.ymax*1.1)
 		
 		# set up the chart
 		#datemin = dt.date(r.date.min().year, 1, 1)
@@ -225,7 +233,7 @@ for site in sites:
 		# ax.grid()
 		
 		# save the figure
-		figname = '%s_%s.png' % (fname, d)
+		figname = '%s_%s.png' % (fname, date_object)
 		
 		# save the figure; set transparency
 		
