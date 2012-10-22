@@ -1,0 +1,3 @@
+This file is meant to accompany packaged distributions of the code library.
+
+To install the code library and toolbox, run install_code_library.py. If you wish to use the toolbox, you must add it from within ArcGIS

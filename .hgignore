@@ -4,3 +4,8 @@ code/raster_extraction/output/*
 *.shelf
 code/raster_extraction/temp.gdb
 *.orig
+.idea/dataSources.xml
+.idea/dataSources.ids
+.idea/workspace.xml
+.idea/misc.xml
+.idea/codeStyleSettings.xml
