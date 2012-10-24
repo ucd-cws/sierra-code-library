@@ -30,23 +30,42 @@ def init(arc_script = False, html = True):
 def initialize(arc_script = False, html = True):
 	init_log(arc_script,html)
 
-
 def init_log(arc_script = False, html = True):
-	
+
+	global write
+	global error
+	global warning
+	global _print_only
+
+	if arc_script:
+		global is_arc_script
+		is_arc_script = True
+
 	log_folder = os.getcwd() #set a default
 	if not os.path.exists(log_file): # try creating it in the default
-		log_create(log_file,arc_script)
+		try:
+			log_create(log_file,arc_script)
+		except:
+			pass # it's ok - the next step will catch it
 		log_folder = os.path.split(log_file)[0]
 	if not os.path.exists(log_file): # verify that it exists
 		log_folder = tempfile.mkdtemp(prefix="code_lib_log")
 		global log_file
 		log_file = os.path.join(log_folder,"log_db.sqlite3")
-		log_create(log_file,arc_script)
+		try:
+			log_create(log_file,arc_script)
+		except:
+			pass # again, next step will catch it
 	if not os.path.exists(log_file): # verify (again) that it exists
 		if arc_script:
-			arcpy.AddError("Could not create log file in current or temporary dirs. Can't log")
+			arcpy.AddError("Could not create log file in current or temporary dirs. Can't log. All log messages will be printed and not saved")
 		else:
-			print "Could not create log file in current or temporary dirs. Can't log"
+			print "Could not create log file in current or temporary dirs. Can't log. All log messages will be printed and not saved"
+
+		# override the default functions
+		write = _print_only
+		error = _print_only
+		warning = _print_only
 		return
 
 	log_connect = sqlite3.connect(log_file)
@@ -69,11 +88,26 @@ def init_log(arc_script = False, html = True):
 	if export_html:
 		html_file = html_setup(log_folder)
 
-	if arc_script:
-		global is_arc_script
-		is_arc_script = True
-	
 	write("Log initialized - software loading\nLog DB is located at %s" % log_file)
+
+def _print_only(log_string = None, screen = True, level = "log"):
+	"""
+		This function is an internal backup function that will be used to replace
+		the write, error, and warning methods in the event that we can't create
+		a log database. Those methods will create a crash if the database
+		can't be created (likely a permissions problem). This function only
+		prints the message to the screen
+
+	:param log_string:
+	:param screen:
+	:param level:
+	:return:
+	"""
+
+	if is_arc_script:
+		arcpy.AddMessage(log_string)
+	else:
+		print log_string
 
 def write(log_string = None,screen = False, level="log"): # levels are "log", "warning", and "error"
 	
