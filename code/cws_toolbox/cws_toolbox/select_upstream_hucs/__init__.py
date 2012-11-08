@@ -28,9 +28,6 @@ if dissolve_output is True or dissolve_output is False:
 else:
 	dissolve_flag = False
 
-if include_selected is False:
-	log.warning("Removal of selected HUCs from returned set is not yet implemented. Sorry!")
-
 zones_file = None
 
 log.init_log(arc_script = True)
@@ -70,7 +67,7 @@ if not check: # error message already printed
 
 try:
 	if direction == "Upstream" or direction == "Both":
-		upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream,dissolve_output)
+		upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream,dissolve_output,include_selected)
 	
 		if upstream_layer:
 			arcpy.SetParameter(7,upstream_layer)
@@ -78,7 +75,7 @@ try:
 			log.error("No Upstream Layer to Return")
 			
 	if direction == "Downstream" or direction == "Both":
-		downstream_layer = network.get_downstream_from_hucs(huc_to_find_upstream,dissolve_output)
+		downstream_layer = network.get_downstream_from_hucs(huc_to_find_upstream,dissolve_output,include_selected)
 	
 		if downstream_layer:
 			arcpy.SetParameter(8,downstream_layer)

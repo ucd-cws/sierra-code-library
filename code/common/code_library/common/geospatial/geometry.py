@@ -267,6 +267,14 @@ def get_centroids_as_file(feature=None,filename = None,spatial_reference = None,
 		log.error("Couldn't get centroids into file - traceback follows:\n %s" % err_str)
 	
 def check_type(feature = None ,feature_type = None,return_type = False):
+	"""
+
+	:param feature:
+	:param feature_type:
+	:param return_type:
+	:return:
+	"""
+
 
 	if not feature:
 		log.warning("no features in check_type")
