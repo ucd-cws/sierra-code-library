@@ -157,7 +157,7 @@ def reset_feature_layer(feature_class,layer_name = None):
 
 def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field, geospatial_obj):
 	"""
-	takes the huc, gets the huc 12, does a boundary touches new selection on the feature_layer - returns a huc_issue or True
+	Takes the huc, gets the huc 12, does a boundary touches new selection on the feature_layer - returns a huc_issue or True
 
 	:param zone_id: the actual id of the zone we want to check (as defined in the key_field)
 	:param feature_layer: the layer to use to check it against
@@ -323,15 +323,8 @@ except:
 	log.error("Failed to copy features to output destination of %s. They still exist at %s though, so you can find them there, or in your arcmap window if you ran this tool from there" % (full_out_path,temp_features))
 	full_out_path = temp_features # redirect the output path because we're about to use it to create the feature layer
 
-# and then set the output
-output_layer = out_name
-try:
-	arcpy.MakeFeatureLayer_management(full_out_path,output_layer)
-except:
-	log.error("Output layer name already exists OR not running in arcmap - output is at %s" % full_out_path)
-
 log.write("\nLayer checked. Note that caught errors MAY NOT encompass all errors on the downstream attributes for this layer, but caught errors should find genuine issues. You should run this tool again after making any corrections as previously unreported issues may then be caught",True)
-arcpy.SetParameter(6,output_layer)
+arcpy.SetParameter(6,full_out_path)
 
 
 

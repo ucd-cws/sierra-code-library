@@ -23,7 +23,7 @@ zones_cleanup = False
 zones_file = None # will be defined by get_zones_file
 
 watersheds = {}
-network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean"]
+network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean","CLOSED BAS"] # CLOSED BAS is for HUC10s. The shorter field size truncates the statement
 
 huc_layer_cache = None # scripts will need to intialize this to {}
 
