@@ -254,6 +254,8 @@ def grow_selection(features,zones_layer,output_name = None,copy_out=True):
 		arcpy.SelectLayerByLocation_management(zones_layer,"BOUNDARY_TOUCHES",features)
 		#elapsed = system.time_report("grow_selection_actual")
 
+		log.write("grew_selection")
+
 		if copy_out:
 			if output_name:
 				t_name = output_name # if a name is passed in, use it instead
@@ -264,11 +266,14 @@ def grow_selection(features,zones_layer,output_name = None,copy_out=True):
 			arcpy.CopyFeatures_management(zones_layer,t_name)
 			#elapsed = system.time_report("copy_features")
 
-		log.write("grew_selection")
+			log.write("Saved selection",level="debug")
 
-		return t_name
+			return t_name
+
 	except:
 		return None
+
+	return None # if we get here, return None
 	
 def get_mask(feature):
 	'''given an input feature, it finds the full potential upstream area and returns a
@@ -287,6 +292,10 @@ def get_mask(feature):
 		return None
 
 def get_upstream(hucs):
+	"""
+		given a list of HUCs as a starting point, selects all upstream HUCs and returns them as a feature layer
+
+	"""
 	try:
 		log.write("Getting Upstream HUCs",True)
 		hucs_to_select = list(set(hucs)) # we want a copy, might as well dedupe...
@@ -348,7 +357,9 @@ def get_downstream(hucs):
 		return None
 	
 def get_downstream_path(zone,l_watersheds):
-	'''starts with a huc and uses the watershed network to find a path downstream'''
+	"""
+		starts with a huc and uses the watershed network to find a path downstream
+	"""
 
 	current_DS = zone # set the starting huc
 	path_list = []
@@ -371,13 +382,26 @@ def get_downstream_path(zone,l_watersheds):
 		
 	return path_list
 
-def get_upstream_from_hucs(hucs_layer):
+def get_upstream_from_hucs(hucs_layer,dissolve_flag = False):
 
 	hucs = read_hucs(hucs_layer)
 	
-	return get_upstream(hucs)
+	upstream_layer = get_upstream(hucs)
 
-def get_downstream_from_hucs(hucs_layer):
+	if dissolve_flag:
+		log.write("Dissolving",True)
+		return geospatial.fast_dissolve(upstream_layer,raise_error=False,base_name="dissolved_upstream_hucs")
+	else:
+		return upstream_layer
+
+
+def get_downstream_from_hucs(hucs_layer,dissolve_flag = False):
 	hucs = read_hucs(hucs_layer)
 	
-	return get_downstream(hucs)
+	downstream_layer = get_downstream(hucs)
+
+	if dissolve_flag:
+		log.write("Dissolving",True)
+		return geospatial.fast_dissolve(downstream_layer,raise_error=False,base_name="dissolved_downstream_hucs")
+	else:
+		return downstream_layer

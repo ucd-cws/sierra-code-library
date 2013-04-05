@@ -1,0 +1,32 @@
+###################################################
+#To change profile for R, go here:
+#C:\Program Files\R\R-2.15.1\etc
+#Then open the "Rprofile.site" file and add:
+
+###################################################
+.First <- function(){
+	cat("\nWelcome to R!\n",sep="")
+	cat("---------------\n\n",sep="")
+	
+	if(file.exists("~/RbasicFunctions.r")){
+		source("~/RbasicFunctions.r")
+		cat("RbasicFunctions.r was loaded, providing the following functions:\n\n",sep="")
+		print.functions()
+	}
+}
+
+####################################################
+
+MAKE SURE TO PLACE FUNCTION SCRIPT FILE: ("RbasicFunctions.r") 
+IN YOUR PERSONAL DOCUMENTS FOLDER (i.e., C:\Users\NAME\Documents)
+OR, IN SAME LOCATION "Rprofile.site" IS LOCATED (i.e., C:\Program Files\R\R-2.15.1\etc)
+
+####################################################
+Also, you can set local CRAN mirror to be (for Northern CA):
+
+# set a CRAN mirror
+local({r <- getOption("repos")
+       r["CRAN"] <- "http://cran.cnr.berkeley.edu/"
+       options(repos=r)})
+
+####################################################

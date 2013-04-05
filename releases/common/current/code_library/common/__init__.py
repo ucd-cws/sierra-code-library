@@ -9,5 +9,5 @@ import log
 import huc_network
 import geospatial
 
-__all__=['math','log','huc_network','geospatial']
+__all__=['math','log','huc_network','geospatial','utils']
 

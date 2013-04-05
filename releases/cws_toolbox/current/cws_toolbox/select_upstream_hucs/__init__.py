@@ -16,12 +16,20 @@ from code_library.common import huc_network as network #@UnresolvedImport
 
 huc_to_find_upstream = arcpy.GetParameterAsText(0)
 direction = arcpy.GetParameterAsText(1)
-in_zones_file = arcpy.GetParameterAsText(2)
-in_huc_field = arcpy.GetParameterAsText(3)
-in_ds_field = arcpy.GetParameterAsText(4)
+dissolve_output = arcpy.GetParameter(2)
+include_selected = arcpy.GetParameter(3)
+in_zones_file = arcpy.GetParameterAsText(4)
+in_huc_field = arcpy.GetParameterAsText(5)
+in_ds_field = arcpy.GetParameterAsText(6)
 # other parameters to add
-# zones_file - should be able to be a separate file from the selected
-# DS Field
+
+if dissolve_output is True or dissolve_output is False:
+	dissolve_flag = dissolve_output
+else:
+	dissolve_flag = False
+
+if include_selected is False:
+	log.warning("Removal of selected HUCs from returned set is not yet implemented. Sorry!")
 
 zones_file = None
 
@@ -47,7 +55,8 @@ def handle_params(l_hucs_to_find_upstream,l_in_zones_file,l_in_huc_field,l_in_ds
 		return l_in_zones_file
 	else:
 		return get_zones_file(l_hucs_to_find_upstream)
-	
+
+
 zones_file = handle_params(huc_to_find_upstream,in_zones_file,in_huc_field,in_ds_field)
 if not zones_file or not arcpy.Exists(zones_file):
 	log.error("No zones file!")
@@ -61,18 +70,18 @@ if not check: # error message already printed
 
 try:
 	if direction == "Upstream" or direction == "Both":
-		upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream)
+		upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream,dissolve_output)
 	
 		if upstream_layer:
-			arcpy.SetParameter(5,upstream_layer)
+			arcpy.SetParameter(7,upstream_layer)
 		else:
 			log.error("No Upstream Layer to Return")
 			
 	if direction == "Downstream" or direction == "Both":
-		downstream_layer = network.get_downstream_from_hucs(huc_to_find_upstream)
+		downstream_layer = network.get_downstream_from_hucs(huc_to_find_upstream,dissolve_output)
 	
 		if downstream_layer:
-			arcpy.SetParameter(6,downstream_layer)
+			arcpy.SetParameter(8,downstream_layer)
 		else:
 			log.error("No Downstream Layer to Return")
 except:

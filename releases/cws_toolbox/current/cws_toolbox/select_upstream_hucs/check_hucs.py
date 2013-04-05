@@ -91,15 +91,15 @@ def check_huc_from_row(row):
 
 	huc_12_id = row.getValue(key_field) # cache it - we'll use it a bunch right now
 	huc_12_ds = row.getValue(ds_field)
-	
+
 	if not row.getValue(key_field):
 		return 0
-	
+
 	if huc_12_ds not in huc12s_index and huc_12_ds not in huc_network.network_end_hucs:
 		issue = huc_issue(huc_12_id,"ds_dne","Downstream HUC_12 does not exist in this dataset")
 		marked_as_bad.append(issue)
 		issues_index[huc_12_id].append(issue)
-		
+
 	if row.getValue(hu10_ds_key) not in huc10s_index and row.getValue(hu10_ds_key) not in huc_network.network_end_hucs:
 		message = "Downstream HUC_10 does not exist in this dataset"
 		reason = "10_ds_dne"
@@ -107,7 +107,7 @@ def check_huc_from_row(row):
 		issue = huc_issue(huc_12_id,reason,message,huc_10 = row.getValue(hu10_key))
 		marked_as_bad.append(issue)
 		issues_index[huc_12_id].append(issue)
-		
+
 	if row.getValue(hu10_key) not in huc_12_ds and row.getValue(hu10_ds_key) not in huc_12_ds:
 		message = "Downstream HUC_12 is not within the current HUC_10 or the downstream HUC_10 - possible problem with any of those attributes"
 		reason = "ds_not_within"
@@ -170,6 +170,10 @@ def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field, geos
 	if not zone_id or not feature_layer or not zone_network:
 		log.error("Missing parameters to check_boundary_from_id")
 		raise ValueError("Missing parameters to check_boundary_from_id")
+
+	if zone_network[zone_id].downstream in huc_network.network_end_hucs:
+		# don't even run the test if it's a network end huc - just return True
+		return True
 
 	try:
 		checked = huc_network.select_hucs([zone_id],feature_layer,copy_out=False,geospatial_obj=geospatial_obj)
@@ -329,6 +333,6 @@ except:
 log.write("\nLayer checked. Note that caught errors MAY NOT encompass all errors on the downstream attributes for this layer, but caught errors should find genuine issues. You should run this tool again after making any corrections as previously unreported issues may then be caught",True)
 arcpy.SetParameter(6,output_layer)
 
-		
-	
-		
+
+
+

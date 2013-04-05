@@ -2,7 +2,7 @@ import os
 
 run_dir = os.getcwd()
 
-use_point_estimate = True # warning: If this is set to true, the zone_field should NOT be the primary key (OID) field
+use_point_estimate = False # warning: If this is set to true, the zone_field should NOT be the primary key (OID) field
 							# because it will be changed
 zone_field = "NID"
 
@@ -11,10 +11,9 @@ flag_subprocess_zonal_stats = True # default: False - True means that it will ru
 bcm_folder = None
 usgs_issues = "usgs_issues"
 usgs_data = "usgs_data"
-current_datasets = {"usgs_data":usgs_data}
-
-# sets whether or not to run zonal stats in a subprocess - not implemented
-use_subprocesses = True
+elev_cm = "elev_extra"
+round2 = "round2"
+current_datasets = {"round2":round2}
 
 #temp_gdb = support.check_gdb(run_dir, "temp")
 
@@ -22,7 +21,7 @@ data_folder = os.path.join(run_dir,"data")
 input_folder = os.path.join(data_folder,"inputs")
 output_folder = os.path.join(run_dir,"output")
 
-input_dataset = os.path.join(input_folder,"final_dam_catchments.gdb","final_catchments")
+input_dataset = os.path.join(input_folder,"final_dam_catchments.gdb","dam_catchments_eval_v8_oct")
 
 datasets_index = {}
 datasets = []

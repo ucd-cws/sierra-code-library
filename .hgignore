@@ -9,3 +9,4 @@ code/raster_extraction/temp.gdb
 .idea/workspace.xml
 .idea/misc.xml
 .idea/codeStyleSettings.xml
+*log_html.htm
