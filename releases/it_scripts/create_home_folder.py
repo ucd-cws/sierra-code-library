@@ -5,7 +5,7 @@ import sys
 import traceback
 
 home_folder = r"E:\Home"
-username = raw_input("Please enter the user's SIERRA domain username: ")
+username = raw_input("Please enter the user's SIERRA domain user name: ")
 
 home_prompt = raw_input("Is home folder %s? (y/n)" % home_folder)
 if home_prompt.lower() == "n" or home_prompt.lower() == "no":
