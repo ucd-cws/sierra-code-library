@@ -20,7 +20,7 @@ setup(name="CWS Toolbox",
 	],
 	author="Nick Santos, with contributions from other staff",
 	author_email="nrsantos@ucdavis.edu",
-	url = 'http://bitbucket.org/UltraAyla/sierra-code-library',
+	url = 'http://bitbucket.org/nickrsan/sierra-code-library',
 	package_dir = {'':'.','cws_toolbox':'cws_toolbox/cws_toolbox','code_library':'common/code_library'},
 	data_files=[
 		('cws_toolbox',['CWS Utilities.tbx','sqlite3.exe']),
