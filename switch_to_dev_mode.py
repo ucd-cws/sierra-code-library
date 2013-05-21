@@ -7,25 +7,25 @@ curdir = os.getcwd()
 print "Registering location in system registry at HKEY_CURRENT_USER\Software\CWS\code_library\location"
 print "Registering location as %s" % curdir
 try:
-	registry = ConnectRegistry("",HKEY_CURRENT_USER)
-	Software = OpenKey(registry,"Software")
-	CWS = CreateKey(Software,"CWS")
-	code_library = CreateKey(CWS,"code_library")
-	SetValue(code_library,"location",REG_SZ,curdir)
+	registry = ConnectRegistry("", HKEY_CURRENT_USER)
+	Software = OpenKey(registry, "Software")
+	CWS = CreateKey(Software, "CWS")
+	code_library = CreateKey(CWS, "code_library")
+	SetValue(code_library, "location", REG_SZ, curdir)
 	FlushKey(code_library)
 	print "registered!\n"
 except:
 	print "FAILED to register"
 	
 try:
-	locations = ("code\\common","code\\cws_toolbox","releases\\common\\current","releases\\cws_toolbox\\current",)
+	locations = ("code\\common", "code\\cws_toolbox", "releases\\common\\current", "releases\\cws_toolbox\\current",)
 	print "Writing location to Python path"
 	pth_dir = get_python_lib()
-	pth_file = os.path.join(pth_dir,"code_library.pth")
-	open_file = open(pth_file,'w')
+	pth_file = os.path.join(pth_dir, "code_library.pth")
+	open_file = open(pth_file, 'w')
 	for folder in locations:
 		print "Writing %s" % os.path.join(curdir,folder)
-		open_file.write(os.path.join(curdir,folder) + "\n")
+		open_file.write(os.path.join(curdir, folder) + "\n")
 	open_file.close()
 	print "Location written\n"
 except:
