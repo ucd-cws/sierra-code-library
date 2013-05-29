@@ -1,11 +1,15 @@
 __author__ = 'Nick'
 
+import logging
+
 import numpy
+import usgs
+
+log = logging.getLogger("code_library")
 
 convert_month = {"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
 				"Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"}
 # format is ddmmmyyyy hhmm where mmm is the three letter month abbrev
-
 
 class plot_series:
 	def __init__(self, field=None, color="#000000", future_color="#999999", shared_axis=None, smooth=False,
@@ -29,7 +33,7 @@ class plot_series:
 		self.field = field
 		self.color = color
 		self.future_color = future_color
-		self.data = None  # will be set later
+		self.data = None  # will be set later - it's a data-frame like object from matplotlib loading
 		self.axis = None  # will also be set later
 		self.shared_axis = shared_axis  # should be set to the plot_series item that the Y axis is shared with
 		self.inbound_shared = []  # keep track of which items use this one's axis so we can can set their min and max correctly
@@ -55,6 +59,8 @@ class plot_series:
 				self.data[index] = 1
 
 	def get_moving_avg_value(self, index, size=None):
+
+
 		if not size:
 			size = self.moving_average_size
 
@@ -78,7 +84,8 @@ class plot_series:
 		return interesting_slice[self.field].mean()
 
 	def transform_data_to_moving_average(self):
-		print "transforming data to moving average"
+
+		log.info("Transforming data to moving average")
 		self.original_data = self.data
 		for index, value, in enumerate(self.data):
 			self.data[index] = self.get_moving_avg_value(index,self.moving_average_size)
@@ -93,7 +100,7 @@ def convert_bad_date(date):
 		#print "[%s]" % s.group(5)
 		good_date = "%s-%s-%s %s%s" % (convert_month[s.group(2)], s.group(1), s.group(3), s.group(4), s.group(5))
 	except:
-		print "Bad date - filling with 0 date so it doesn't crash in next step"
+		log.error("Bad date - filling with 0 date so it doesn't crash in next step")
 		good_date = "01/01/1901 00:00"
 
 	return good_date
@@ -113,7 +120,7 @@ def setup_data(data, plot_items):
 		# now that they're all set, run through it again
 		if len(item.inbound_shared) > 0:
 			# it has inbound shared axes
-			print "Setting ymax for item with shared Y axis"
+			log.info("Setting ymax for item with shared Y axis")
 			for other_item in item.inbound_shared:  # run through all of them, but only set it for this item
 				item.ymax = max(item.ymax, other_item.ymax)
 				item.ymin = min(item.ymin, other_item.ymin)
