@@ -22,6 +22,7 @@ try:
 	print "Writing location to Python path"
 	pth_dir = get_python_lib()
 	pth_file = os.path.join(pth_dir,"code_library.pth")
+	print "Writing to %s" % pth_file
 	open_file = open(pth_file,'w')
 	for folder in locations:
 		print "Writing %s" % os.path.join(curdir,folder)

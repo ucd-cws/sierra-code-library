@@ -1,2 +1,0 @@
-PyODBC: PISCES requires PyODBC to run - see the dependencies folder for a compatible version.
-Arcpy: Arcpy is installed with ArcGIS 10 as is Python 2.6, both of which are required to run PISCES.

@@ -1,0 +1,20 @@
+PDQ1	Balance Summary							
+Fiscal Period:	"May, 2013"	(Year-To-Date)						
+Chart:3	Pending Transactions:	NO						
+Account:	3-JVCRG35 - JMIE/JHV1: Seeds WildlifeVeg CRP TNC	Pre-Encumbrances:	NO					
+		C&G History	YES					
+		BLSH Consolidation	YES					
+		Indirect Costs	YES					
+		Payroll Liens	YES					
+		Benefit Liens	YES					
+		Default Project	YES					
+		Zero Activity Lines	NO					
+								
+								
+Chart	Account	Account Name	Consolidation	Object Consol. Name	Budget	Expenditures	Encumbrance	Balance
+								
+3	JVCRG35	JMIE/JHV1: Seeds WildlifeVeg CRP TNC	SUBG	GENERAL ASSISTANCE	-35744	21094.94	340	-14309.06
+3	JVCRG35	JMIE/JHV1: Seeds WildlifeVeg CRP TNC	SB28	LEAVE ASSESSMENT & USAGE	0	135.46	0	135.46
+3	JVCRG35	JMIE/JHV1: Seeds WildlifeVeg CRP TNC	SUB3	SUPPLIES AND EXPENSE	-14200	5502.11	0	-8697.89
+3	JVCRG35	JMIE/JHV1: Seeds WildlifeVeg CRP TNC	SUB6	EMPLOYEE BENEFITS	-11550.56	1889.47	4.42	-9656.67
+3	JVCRG35	JMIE/JHV1: Seeds WildlifeVeg CRP TNC	INDR	INDIRECT COSTS	-15373.64	7155.66	0	-8217.98
