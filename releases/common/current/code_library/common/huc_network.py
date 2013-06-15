@@ -23,9 +23,9 @@ zones_cleanup = False
 zones_file = None # will be defined by get_zones_file
 
 watersheds = {}
-network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean"]
+network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean","CLOSED BAS"] # CLOSED BAS is for HUC10s. The shorter field size truncates the statement
 
-huc_layer_cache = {}
+huc_layer_cache = None # scripts will need to intialize this to {}
 
 temp_folder = None
 temp_gdb = None
@@ -291,11 +291,16 @@ def get_mask(feature):
 		log.error("analysis mask failed")
 		return None
 
-def get_upstream(hucs):
+def get_upstream(hucs, include_initial = True):
 	"""
-		given a list of HUCs as a starting point, selects all upstream HUCs and returns them as a feature layer
+	given a list of HUCs as a starting point, selects all upstream HUCs and returns them as a feature layer
 
+	:param hucs: list. the huc or hucs to get the upstream of.
+	:param include_initial: Boolean. Indicates whether the starting hucs should be included in the returned layer. Default
+	is True
+	:return:
 	"""
+
 	try:
 		log.write("Getting Upstream HUCs",True)
 		hucs_to_select = list(set(hucs)) # we want a copy, might as well dedupe...
@@ -304,14 +309,17 @@ def get_upstream(hucs):
 		zones_layer = check_zones(cleanup="get_upstream")
 
 		for huc in hucs:
-			if huc in huc_layer_cache.keys():
+			if huc_layer_cache and huc in huc_layer_cache.keys():# huc layer cache stores the layers that are generated. Some scripts will use it when they use this function multiple times.
 				log.write("short_circuiting")
 				return huc_layer_cache[huc] # short circuit!
-			
+
 			hucs_to_select += find_upstream(huc,watersheds) # add the upstream hucs to the list
-		
-		hucs_to_select = list(set(hucs_to_select)) # remove duplicates - it'll speed things up a bit!
-		
+
+		if include_initial:
+			hucs_to_select = list(set(hucs_to_select)) # remove duplicates - it'll speed things up a bit!
+		else: # we don't want to include the intial hucs
+			hucs_to_select = list(set(hucs_to_select) - set(hucs)) # so subtract the set of initial hucs from the current set.
+
 		log.write("Selecting %s hucs" % len(hucs_to_select),True)
 		
 		if len(hucs_to_select) == 0: # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
@@ -320,8 +328,9 @@ def get_upstream(hucs):
 		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="upstream_hucs")
 
 		cleanup_zones(zones_layer,"get_upstream",allow_delete=True)
-		
-		huc_layer_cache[main_huc] = extent_layer # save it so we can short circuit next time!
+
+		if huc_layer_cache:
+			huc_layer_cache[main_huc] = extent_layer # save it so we can short circuit next time!
 
 		return extent_layer
 	except:
@@ -329,7 +338,7 @@ def get_upstream(hucs):
 		log.error("select upstream failed\n%s" % error_string)
 		return None
 
-def get_downstream(hucs):
+def get_downstream(hucs, include_initial = True):
 	
 	log.write("Getting Downstream HUCs",True)
 	
@@ -344,6 +353,9 @@ def get_downstream(hucs):
 		
 		if len(hucs_to_select) == 0: # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
 			return None
+
+		if include_initial is False:
+			hucs_to_select = list(set(hucs_to_select) - set(hucs)) # subtract the initial hucs back out
 		
 		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="downstream_hucs")
 		
@@ -382,11 +394,11 @@ def get_downstream_path(zone,l_watersheds):
 		
 	return path_list
 
-def get_upstream_from_hucs(hucs_layer,dissolve_flag = False):
+def get_upstream_from_hucs(hucs_layer,dissolve_flag = False,include_initial=True):
 
 	hucs = read_hucs(hucs_layer)
 	
-	upstream_layer = get_upstream(hucs)
+	upstream_layer = get_upstream(hucs,include_initial)
 
 	if dissolve_flag:
 		log.write("Dissolving",True)
@@ -395,10 +407,10 @@ def get_upstream_from_hucs(hucs_layer,dissolve_flag = False):
 		return upstream_layer
 
 
-def get_downstream_from_hucs(hucs_layer,dissolve_flag = False):
+def get_downstream_from_hucs(hucs_layer,dissolve_flag = False,include_initial=True):
 	hucs = read_hucs(hucs_layer)
 	
-	downstream_layer = get_downstream(hucs)
+	downstream_layer = get_downstream(hucs,include_initial)
 
 	if dissolve_flag:
 		log.write("Dissolving",True)
