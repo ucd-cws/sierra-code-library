@@ -38,6 +38,8 @@ cfg_field_mapping = {  # maps DAFIS fields to our fields - DAFIS fields are the 
 cfg_month_year_field = "last_update"  # field mapped separately because it doesn't come in for each record
 cfg_string_keys = ("Account", "Object Consol. Name", "Object Consol Name")  # all of the keys from the field mapping that need to be inserted as strings (quoted)
 
+cfg_debug = True
+
 ### INIT ###
 # don't change the following value unless you know what you're doing. If you set them, the user won't receive a prompt
 db_path = None  # default it to None - we'll set if after asking the user
@@ -47,9 +49,13 @@ old_table = None
 log = None
 
 
+
 def init():
 	log = logging.getLogger(__name__)  # gets a handle for a script specific logger
-	log.setLevel(logging.INFO)
+	if cfg_debug:
+		log.setLevel(logging.DEBUG)
+	else:
+		log.setLevel(logging.INFO)
 	FORMAT = "%(asctime)-15s %(message)s"
 	logging.basicConfig(format=FORMAT)
 	return log
@@ -162,6 +168,8 @@ def read_data_file(data_file_path):
 	results.month_year = re.search(cfg_month_and_year_regex, results.month_year_raw).group(cfg_regex_capture_group)
 	# complicated line - runs the regex on month_year_raw, and takes the capture group IDed in the config and saves it
 	results.account = re.search(cfg_account_regex, results.account_raw).group(cfg_account_capture_group)
+	log.info("Month and year for file is %s" % results.month_year)
+	log.info("Account for file is %s" % results.account)
 
 	file_handle = open(data_file_path, 'rb')  # reopen it for the csv reader
 	i = 1  # init on line 1
@@ -225,6 +233,15 @@ def output_all_data(inputs, database_name, table_name):
 	db_close(db_cursor, db_conn)
 
 
+def _special_account_case(key, dict_row, query, dataset):
+	if key in dict_row and dict_row[key] != "" and dict_row[key] is not None: # if the key exists and isn't empty
+		val = dict_row[key]
+	else:
+		val = dataset.account
+
+	return query + "'%s'," % val
+
+
 def build_query(table, dict_row, dataset,):
 	"""
 	Builds a query for a single row. Slower than if we used a single query with placeholders, but guarantees that we
@@ -240,7 +257,12 @@ def build_query(table, dict_row, dataset,):
 	for key in cfg_field_mapping:  # add the column names
 		if key in dict_row:
 			keys.append(key)
-			query += "%s," % cfg_field_mapping[key]
+
+	if not "Account" in keys:
+		keys.append("Account")
+
+	for key in keys:  # need to do this after checking for Account
+		query += "%s," % cfg_field_mapping[key]
 
 	if keys[0] in dict_row and dict_row[keys[0]] == "":
 		raise ValueError()
@@ -255,7 +277,7 @@ def build_query(table, dict_row, dataset,):
 				query += "%s," % dict_row[key]
 		except KeyError:  # we have an edge case
 			if key == "Account":  # in some cases the account won't exist
-				query += "'%s'," % dataset.account
+				query = _special_account_case(key, dict_row, query, dataset)
 			else:
 				raise  # if it's not this case, raise the exception
 
