@@ -5,6 +5,7 @@ import csv
 import pyodbc
 import logging
 import re
+import traceback
 
 ### CONFIGURATION ###
 cfg_cwd = os.getcwd()  # get the directory that we are operating out of
@@ -28,13 +29,14 @@ cfg_account_capture_group = 1
 cfg_field_mapping = {  # maps DAFIS fields to our fields - DAFIS fields are the keys for lookup, our fields are the values
 	'Account': "Account",
 	'Object Consol. Name': "Consolidation",
+	'Object Consol Name': "Consolidation",  # sometimes appears without a period
 	'Expenditures': "Expenditures",
 	'Encumbrance': "Encumbrance",
 	'Balance': "Balance",
 	#'Month_and_Year': "",
 }
 cfg_month_year_field = "last_update"  # field mapped separately because it doesn't come in for each record
-cfg_string_keys = ("Account", "Object Consol. Name")
+cfg_string_keys = ("Account", "Object Consol. Name", "Object Consol Name")  # all of the keys from the field mapping that need to be inserted as strings (quoted)
 
 ### INIT ###
 # don't change the following value unless you know what you're doing. If you set them, the user won't receive a prompt
@@ -47,7 +49,7 @@ log = None
 
 def init():
 	log = logging.getLogger(__name__)  # gets a handle for a script specific logger
-	log.setLevel(logging.DEBUG)
+	log.setLevel(logging.INFO)
 	FORMAT = "%(asctime)-15s %(message)s"
 	logging.basicConfig(format=FORMAT)
 	return log
@@ -186,9 +188,9 @@ def db_close(curs, conn):
 def output_all_data(inputs, database_name, table_name):
 	"""
 		Writes all of the data out to the database, rolling back changes for any files with errors.
-	:param inputs:
-	:param database_name:
-	:param table_name:
+	:param inputs: list of input file objects
+	:param database_name: the database path to connect to
+	:param table_name: the table name to insert records into
 	:return:
 	"""
 
@@ -196,6 +198,9 @@ def output_all_data(inputs, database_name, table_name):
 
 	for dataset in inputs:
 		file_failed = False
+
+		log.info("Entering %s" % dataset.filename)
+
 		for row in dataset.data:
 			try:
 				query = build_query(table_name, row, dataset)
@@ -206,13 +211,14 @@ def output_all_data(inputs, database_name, table_name):
 				log.debug("Running query: %s" % query)
 				db_cursor.execute(query)
 			except:
+				error_str = traceback.format_exc(limit=2)
 				file_failed = True
 
 		if not file_failed:  # if everything went well for the file
 			db_conn.commit()  # commit the entries
 		else:  # otherwise, warn the user
 			db_conn.rollback()
-			log.error("failed to insert records for %s. The whole file has been omitted" % dataset.filename)
+			log.error("FAILED to insert records for %s. The whole file has been omitted. Error follows: %s" % (dataset.filename, error_str))
 
 		dataset.file_handle.close()  # now that we're done with it, close the file handle
 
@@ -232,19 +238,20 @@ def build_query(table, dict_row, dataset,):
 
 	keys = []
 	for key in cfg_field_mapping:  # add the column names
-		keys.append(key)
-		query += "%s," % cfg_field_mapping[key]
+		if key in dict_row:
+			keys.append(key)
+			query += "%s," % cfg_field_mapping[key]
 
-	if dict_row[keys[0]] == "":
+	if keys[0] in dict_row and dict_row[keys[0]] == "":
 		raise ValueError()
 
 	query += "%s) values (" % cfg_month_year_field  # add in the month and year field
 
 	for key in keys:  # add the values
 		try:
-			if key in cfg_string_keys:
+			if key in cfg_string_keys:  # if the datatype is string for the database, we want to quote the value
 				query += "'%s'," % dict_row[key]
-			else:
+			else:  # otherwise, pass it in unquoted
 				query += "%s," % dict_row[key]
 		except KeyError:  # we have an edge case
 			if key == "Account":  # in some cases the account won't exist
