@@ -6,6 +6,7 @@ import pyodbc
 import logging
 import re
 import traceback
+import datetime
 
 ### CONFIGURATION ###
 cfg_cwd = os.getcwd()  # get the directory that we are operating out of
@@ -38,7 +39,10 @@ cfg_field_mapping = {  # maps DAFIS fields to our fields - DAFIS fields are the 
 cfg_month_year_field = "last_update"  # field mapped separately because it doesn't come in for each record
 cfg_string_keys = ("Account", "Object Consol. Name", "Object Consol Name")  # all of the keys from the field mapping that need to be inserted as strings (quoted)
 
-cfg_debug = True
+cfg_archive_date = "1/1/2012"
+cfg_personnel_table = "tblFundingPercentages"
+cfg_personnel_old_table = "tblPriorPercentages"
+cfg_debug = False
 
 ### INIT ###
 # don't change the following value unless you know what you're doing. If you set them, the user won't receive a prompt
@@ -47,7 +51,90 @@ input_folder = None  # default it to None - we'll set if after asking the user
 table = None
 old_table = None
 log = None
+archive_date = None
 
+archive_tables = []
+
+class data_file():
+	def __init__(self, data=None, month_year=None):
+		self.filename = None
+		self.data = data
+		self.account_raw = None
+		self.account = None
+		self.month_year_raw = None
+		self.month_year = month_year
+		self.file_handle = None  # we store the file handle because we'll need to leave it open for a while across funcs
+
+
+class archive_table():
+	"""
+		A table that needs to be archived based upon a column value
+	"""
+
+	def __init__(self, table_name=None, old_table_name=None, database=None, columns=[]):
+		self.table = table_name
+		self.old_table = old_table_name
+		self.columns = columns
+		self.database = database
+
+		self.select = None
+		self.delete = None
+		self.archive_date = None
+
+	def convert_date(self):
+		self.archive_date = datetime.datetime.strptime(self.archive_date, "%m/%d/%Y").date()
+
+	def archive(self):
+		"""
+			Archives the specified records. Loads all records in the current table, inserts them into the old, then deletes
+		"""
+
+		db_cursor, db_conn = db_connect(self.database)
+		insert_cursor = db_conn.cursor()
+
+		# get the records, make the insert query, and insert into the selected columns into the old table
+		log.debug("Selecting using %s" % self.select)
+
+
+		records = db_cursor.execute(self.select)
+		insert_query = self.make_insert_query()
+		for record in records:
+			bind_vals = self.order_bind(record)
+			log.debug("Inserting using %s" % insert_query)
+			insert_cursor.execute(insert_query, *bind_vals)  # expand out the bind_vals into single vals and execute
+
+		# execute the delete query
+		log.debug("Deleting using %s" % self.delete)
+		db_cursor.execute(self.delete)
+
+		db_conn.commit()
+		insert_cursor.close()
+		db_close(db_cursor, db_conn)
+
+
+	def make_insert_query(self):
+		query = "insert into %s (" % self.old_table
+		second_half = ") values ("
+		bind_vals = []
+
+		for item in self.columns:
+			query += "%s," % item
+			second_half += "?,"
+
+		query = query[:-1]
+		second_half = second_half[:-1] # chop the trailing comma off or Access complains
+		query += second_half + ")"
+
+		return query
+
+	def order_bind(self, result):
+		bind_vals = []
+		for column in self.columns:
+			try:
+				bind_vals.append(result.__getattribute__(column))
+			except:
+				bind_vals.append("")  # append blank
+		return bind_vals
 
 
 def init():
@@ -61,12 +148,14 @@ def init():
 	return log
 
 
-def archive_old(database, l_table, old_table):
+def archive_old(database, l_table, old_table, archive_tables):
 	"""
 		Takes all existing records in the input table and drops them into the prior data table for history. Then deletes
 		the records in the existing table in order to clear the way for the import
 	:return:
 	"""
+
+	log.info("Archiving Old Data")
 
 	db_cursor, db_conn = db_connect(database)
 
@@ -75,6 +164,9 @@ def archive_old(database, l_table, old_table):
 	db_conn.commit()  # the copy inserts new records and the delete removes - save that
 
 	db_close(db_cursor, db_conn)
+
+	for item in archive_tables:
+		item.archive()
 
 
 def copy_records(db_cursor, db_conn, cur_table, old_table):
@@ -112,7 +204,7 @@ def set_value(item_path=None, default_path=None, name="database", is_path=False)
 		if use_default_name.lower() == "y" or use_default_name.lower() == "yes":  # if the response in lowercase letters is y or yes
 			return default_path  # assign the default
 		else:
-			prompt_text = "Ok, then what %s should we use?"
+			prompt_text = "Ok, then what %s should we use?" % name
 			if is_path:
 				prompt_text += "Please enter a fully qualified path (eg: C:\Users\..)"
 			prompt_text += ": "
@@ -138,17 +230,6 @@ def get_all_files(folder):
 				log.error("Couldn't read filename - skipping")
 
 	return inputs
-
-
-class data_file():
-	def __init__(self, data=None, month_year=None):
-		self.filename = None
-		self.data = data
-		self.account_raw = None
-		self.account = None
-		self.month_year_raw = None
-		self.month_year = month_year
-		self.file_handle = None  # we store the file handle because we'll need to leave it open for a while across funcs
 
 
 def read_data_file(data_file_path):
@@ -293,8 +374,18 @@ if __name__ == '__main__':  # only execute the following code if this is the mai
 	input_folder = set_value(input_folder, cfg_default_input_folder, "folder of DAFIS files", is_path=True)
 	database_table = set_value(table, cfg_default_table, "database table")
 	old_table = set_value(old_table, cfg_default_old_data_table, "old data database table")
+	archive_date = set_value(archive_date, cfg_archive_date, "archive date for personnel percentages (<=)")
 
-	archive_old(db_path, database_table, old_table)
+	# set up the table to archive
+	t_tbl = archive_table(cfg_personnel_table, cfg_personnel_old_table, db_path, ["Person", "MoDate", "Account", "Percentage"])
+	t_tbl.date_field = "MoDate"
+	t_tbl.archive_date = archive_date
+	t_tbl.convert_date()
+	t_tbl.delete = "delete from %s where %s < CDATE('%s') OR %s = CDATE('%s')" % (t_tbl.table, t_tbl.date_field, t_tbl.archive_date, t_tbl.date_field,  t_tbl.archive_date)
+	t_tbl.select = "select * from %s where %s < CDATE('%s') OR %s = CDATE('%s')" % (t_tbl.table, t_tbl.date_field, t_tbl.archive_date, t_tbl.date_field,  t_tbl.archive_date)
+	archive_tables.append(t_tbl)
+
+	archive_old(db_path, database_table, old_table, archive_tables)
 	log.info("Reading Data Files")
 	inputs = get_all_files(input_folder)
 	log.info("Writing Outputs To Database")
