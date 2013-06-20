@@ -6,4 +6,4 @@ Created on Jun 20, 2012
 
 from core import *
 import geometry
-__all__ = ['geometry']
+__all__ = ['geometry','core']

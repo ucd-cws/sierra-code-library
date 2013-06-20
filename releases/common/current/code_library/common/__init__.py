@@ -8,6 +8,7 @@ import math
 import log
 import huc_network
 import geospatial
+import image
 
-__all__=['math','log','huc_network','geospatial','utils']
+__all__ = ['math', 'log', 'huc_network', 'geospatial', 'utils', 'image']
 

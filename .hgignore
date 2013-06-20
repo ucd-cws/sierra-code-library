@@ -11,3 +11,4 @@ code/raster_extraction/temp.gdb
 .idea/codeStyleSettings.xml
 *log_html.htm
 .idea/*
+code/build/*

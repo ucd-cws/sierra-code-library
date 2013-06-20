@@ -37,17 +37,51 @@ def create_unique_name(name,workspace,return_full = False,safe_mode = False):
 
 	if safe_mode:
 		log.write("safe mode - using arc only")
-		return arcpy.CreateUniqueName(name,workspace)
+		return arcpy.CreateUniqueName(name, workspace)
 
 	global unique_names
 	if name in unique_names:
 		unique_names[name] += 1
-		return_name = arcpy.CreateUniqueName("%s_%s" %(name,unique_names[name]),workspace) # generally, this shouldn't be necessary, but if something was created between uses of this function, then this is safer
+		return_name = arcpy.CreateUniqueName("%s_%s" % (name, unique_names[name]), workspace)  # generally, this shouldn't be necessary, but if something was created between uses of this function, then this is safer
 	else:
-		unique_names[name] = 0 # initialize the index
+		unique_names[name] = 0  # initialize the index
 		return_name = arcpy.CreateUniqueName(name) # check the name
 
 	if return_full:
-		return os.path.join(workspace,return_name)
+		return os.path.join(workspace, return_name)
 	else:
 		return return_name
+
+
+def listdir_by_ext(folder, extension, full=False):
+	directory_contents = os.listdir(folder)
+	valid_items = []
+
+	if type(extension) == "list" or type(extension) == "tuple":
+		# type checking because I don't want to find my code that checks for non-string iterables right now
+		for item in directory_contents:
+			for ext in extension:
+				if _check_ext(item, ext):
+					if full:
+						valid_items.append(os.path.join(folder, item))
+					else:
+						valid_items.append(item)
+					break  # go to the next item, it won't be more than one ext
+	else:
+		for item in directory_contents:
+			if _check_ext(item, extension):
+					if full:
+						valid_items.append(os.path.join(folder, item))
+					else:
+						valid_items.append(item)
+
+	return valid_items
+
+
+def _check_ext(item, extension):
+	ext_len = len(extension)
+
+	if item[-ext_len:].lower() == extension.lower():  # if the extension on the item is the same as our preferred extension
+		return True
+	else:
+		return False
