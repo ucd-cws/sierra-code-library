@@ -8,7 +8,9 @@ import re
 import traceback
 import datetime
 
+
 ### CONFIGURATION ###
+cfg_debug = False  # When True, prints more data to the log
 cfg_cwd = os.getcwd()  # get the directory that we are operating out of
 cfg_db_name = "VICEROY.accdb"  # only the database name
 cfg_default_db_path = os.path.join(cfg_cwd, cfg_db_name)  # default the path of the database to cfg_db_name in current working directory
@@ -27,22 +29,27 @@ cfg_account_line = 4  # the line to parse the account out of - file starts at li
 cfg_account_regex = '^Account:\s+3-([^\s]+)\s+.*'  # the regular expression to capture the account id
 cfg_account_capture_group = 1
 
+
+cfg_critical_db_keys = ('Account', 'Consolidation', 'Expenditures', 'Encumbrance', 'Balance')
 cfg_field_mapping = {  # maps DAFIS fields to our fields - DAFIS fields are the keys for lookup, our fields are the values
 	'Account': "Account",
 	'Object Consol. Name': "Consolidation",
-	'Object Consol Name': "Consolidation",  # sometimes appears without a period
 	'Expenditures': "Expenditures",
 	'Encumbrance': "Encumbrance",
 	'Balance': "Balance",
-	#'Month_and_Year': "",
+
+	# synonym fields should appear down here to not affect some other (poorly coded) operations
+	'Object Consol Name': "Consolidation",  # sometimes appears without a period
+	'Consolidation Name': "Consolidation",  # sometimes appears as "Consolidation Name" instead
 }
+
 cfg_month_year_field = "last_update"  # field mapped separately because it doesn't come in for each record
-cfg_string_keys = ("Account", "Object Consol. Name", "Object Consol Name")  # all of the keys from the field mapping that need to be inserted as strings (quoted)
+cfg_string_keys = ("Account", "Object Consol. Name", "Object Consol Name", "Consolidation Name", )  # all of the keys from the field mapping that need to be inserted as strings (quoted)
 
 cfg_archive_date = "1/1/2012"
 cfg_personnel_table = "tblFundingPercentages"
 cfg_personnel_old_table = "tblPriorPercentages"
-cfg_debug = False
+
 
 ### INIT ###
 # don't change the following value unless you know what you're doing. If you set them, the user won't receive a prompt
@@ -95,7 +102,6 @@ class archive_table():
 		# get the records, make the insert query, and insert into the selected columns into the old table
 		log.debug("Selecting using %s" % self.select)
 
-
 		records = db_cursor.execute(self.select)
 		insert_query = self.make_insert_query()
 		for record in records:
@@ -110,7 +116,6 @@ class archive_table():
 		db_conn.commit()
 		insert_cursor.close()
 		db_close(db_cursor, db_conn)
-
 
 	def make_insert_query(self):
 		query = "insert into %s (" % self.old_table
@@ -171,18 +176,18 @@ def archive_old(database, l_table, old_table, archive_tables):
 
 def copy_records(db_cursor, db_conn, cur_table, old_table):
 	log.info("Moving old records")
-	t_keys = list(set(cfg_field_mapping.keys()))  # store so we get it in the same order each time
 
 	# this code is a poor way to do this
 	select_string = "select %s as f1, %s as f2, %s as f3, %s as f4, %s as f5, %s as f6 from %s" % (
-			cfg_field_mapping[t_keys[0]], cfg_field_mapping[t_keys[1]], cfg_field_mapping[t_keys[2]],
-			cfg_field_mapping[t_keys[3]], cfg_field_mapping[t_keys[4]], cfg_month_year_field, cur_table)
+			cfg_critical_db_keys[0], cfg_critical_db_keys[1], cfg_critical_db_keys[2],
+			cfg_critical_db_keys[3], cfg_critical_db_keys[4], cfg_month_year_field, cur_table)
 	existing_records = db_cursor.execute(select_string)
+
 	l_cursor = db_conn.cursor()
 
 	insert_string = "insert into %s (%s,%s,%s,%s,%s,%s) values (?,?,?,?,?,?)" % (old_table,
-			cfg_field_mapping[t_keys[0]], cfg_field_mapping[t_keys[1]], cfg_field_mapping[t_keys[2]],
-			cfg_field_mapping[t_keys[3]], cfg_field_mapping[t_keys[4]], cfg_month_year_field)
+			cfg_critical_db_keys[0], cfg_critical_db_keys[1], cfg_critical_db_keys[2],
+			cfg_critical_db_keys[3], cfg_critical_db_keys[4], cfg_month_year_field)
 
 	for record in existing_records:
 		l_cursor.execute(insert_string, record.f1, record.f2, record.f3, record.f4, record.f5, record.f6)

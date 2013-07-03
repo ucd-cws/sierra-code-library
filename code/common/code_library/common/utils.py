@@ -1,14 +1,11 @@
-import tempfile
-import traceback
-import sys
 import os
 
 import arcpy
 
 from code_library.common import log
-from code_library.common import geospatial
 
 unique_names = {}
+
 
 def create_unique_name(name,workspace,return_full = False,safe_mode = False):
 	"""
@@ -52,36 +49,3 @@ def create_unique_name(name,workspace,return_full = False,safe_mode = False):
 	else:
 		return return_name
 
-
-def listdir_by_ext(folder, extension, full=False):
-	directory_contents = os.listdir(folder)
-	valid_items = []
-
-	if type(extension) == "list" or type(extension) == "tuple":
-		# type checking because I don't want to find my code that checks for non-string iterables right now
-		for item in directory_contents:
-			for ext in extension:
-				if _check_ext(item, ext):
-					if full:
-						valid_items.append(os.path.join(folder, item))
-					else:
-						valid_items.append(item)
-					break  # go to the next item, it won't be more than one ext
-	else:
-		for item in directory_contents:
-			if _check_ext(item, extension):
-					if full:
-						valid_items.append(os.path.join(folder, item))
-					else:
-						valid_items.append(item)
-
-	return valid_items
-
-
-def _check_ext(item, extension):
-	ext_len = len(extension)
-
-	if item[-ext_len:].lower() == extension.lower():  # if the extension on the item is the same as our preferred extension
-		return True
-	else:
-		return False
