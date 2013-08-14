@@ -1,7 +1,7 @@
 import csv
 
 from code_library.common import image
-from code_library.common import utils
+from code_library.common import utils2
 
 
 def _extract_baro_from_image(image_name, strip_units):
@@ -49,7 +49,7 @@ def get_baropressures_from_image_folder(folder, strip_units=True):
 	:return: list of dicts containing image data
 	"""
 
-	files = utils.listdir_by_ext(folder, ".jpg", full=True)  # gets only the jpgs out of the folder
+	files = utils2.listdir_by_ext(folder, ".jpg", full=True)  # gets only the jpgs out of the folder
 	image_records = []
 
 	i = 1

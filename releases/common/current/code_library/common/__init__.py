@@ -6,9 +6,12 @@ Created on Mar 3, 2012
 
 import math
 import log
+import db
 import huc_network
 import geospatial
 import image
+import utils
+import utils2
 
-__all__ = ['math', 'log', 'huc_network', 'geospatial', 'utils', 'image']
+__all__ = ['math', 'log', 'db', 'huc_network', 'geospatial', 'utils', 'utils2', 'image']
 

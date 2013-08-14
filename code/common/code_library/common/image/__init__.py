@@ -5,7 +5,7 @@ from PIL.ExifTags import TAGS
 import logging
 import re
 
-exif_reg = {}  # a dictionary to hold all of the exif data that was loaded during a program - this way, multiple calls to extract_value_from_exif won't reopen image, etc
+exif_reg = dict()  # a dictionary to hold all of the exif data that was loaded during a program - this way, multiple calls to extract_value_from_exif won't reopen image, etc
 log = logging.getLogger("cws_code_library")
 
 
@@ -27,10 +27,10 @@ def get_exif(image_file=None, exif_registry=None):
 		decoded = TAGS.get(tag, tag)
 		return_dict[decoded] = value
 
-	if exif_registry and type(exif_registry) == "dict":
+	if exif_registry is not None and (type(exif_registry) is dict):
 		exif_registry[image_file] = return_dict
 	elif exif_registry is not None:
-		log.warn("Type of exif_registry must be to speed up EXIF retrieval performance. Proceeding without")
+		log.warn("Type of exif_registry must be dict to speed up EXIF retrieval performance. Proceeding without")
 
 	return return_dict
 

@@ -4,10 +4,15 @@ Created on Mar 3, 2012
 @author: Nick
 '''
 
+import logging
+
 import arcpy
 
 import common
 from common import log
+
+logging.basicConfig()
+
 use_in_memory = True  # a configuration flag that sets whether or not to use the in_memory workspace for temp files
 temp_datasets = []  # a registry for temp datasets so that you can always clean up if you want to
 
