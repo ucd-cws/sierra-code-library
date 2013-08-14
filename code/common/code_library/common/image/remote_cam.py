@@ -16,9 +16,9 @@ def _extract_baro_from_image(image_name, strip_units):
 	
 def _extract_airtemp_from_image(image_name, strip_units):
 	if strip_units:
-		regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\d+).{1}[FC].*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
+		regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\-?\d+).{1}[FC].*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
 	else:
-		regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\d+.{1}[FC]).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
+		regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\-?\d+.{1}[FC]).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
 	capture_group = 2
 	tag = "ImageDescription"
 
