@@ -46,7 +46,7 @@ def get_remote_cam_image_metadata(image_name, strip_units=True):
 	image_data['datetime'] = _extract_datetime_from_image(image_name)
 	image_data['baropressure'] = _extract_baro_from_image(image_name, strip_units)
 	image_data['filename'] = image_name
-	image_data['airtemp'] = _extract_airtemp_from_image(image_name,strip_units)
+	image_data['airtemp'] = _extract_airtemp_from_image(image_name, strip_units)
 
 	return image_data
 
