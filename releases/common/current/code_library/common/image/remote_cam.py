@@ -13,7 +13,16 @@ def _extract_baro_from_image(image_name, strip_units):
 	tag = "ImageDescription"
 
 	return image.extract_value_from_exif(image_name, tag, regex, capture_group)
+	
+def _extract_airtemp_from_image(image_name, strip_units):
+	if strip_units:
+		regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\-?\d+).{1}[FC].*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
+	else:
+		regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\-?\d+.{1}[FC]).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
+	capture_group = 2
+	tag = "ImageDescription"
 
+	return image.extract_value_from_exif(image_name, tag, regex, capture_group)
 
 def _extract_datetime_from_image(image_name):
 	regex = '^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3}\sinHg).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)'
@@ -37,6 +46,7 @@ def get_remote_cam_image_metadata(image_name, strip_units=True):
 	image_data['datetime'] = _extract_datetime_from_image(image_name)
 	image_data['baropressure'] = _extract_baro_from_image(image_name, strip_units)
 	image_data['filename'] = image_name
+	image_data['airtemp'] = _extract_airtemp_from_image(image_name, strip_units)
 
 	return image_data
 
@@ -67,18 +77,21 @@ def baropressures_to_file(input_folder, output_file, strip_units=True):
 	Obtains metadata for all of the remote camera images in an input folder, and writes it out to a csv
 	:param input_folder: str The folder to get the images from
 	:param output_file: str The file to write out to
+	:param strip_units: boolean Whether or not to include units in the data elements that contain them. If True, units will removed from output. If False, they will be included. Default: True
 	:return: None
 	"""
-
+	
 	image_data = get_baropressures_from_image_folder(input_folder, strip_units)
 
 	filehandle = open(output_file, 'wb')
-	csv_writer = csv.DictWriter(filehandle, ('id', 'site', 'datetime', 'baropressure', 'filename'))
+	keys = image_data[0].keys()
+	keys.reverse()	# doing this as an intermediate because image_data[0].keys().reverse() returns nothing, and instead modifies in place.
+	csv_writer = csv.DictWriter(filehandle, keys) # passing in image_data[0].keys() just tells it what the fields to look for. reversing it because usually it comes out last to first
 
-	if hasattr(csv_writer, "writeheader"):
+	if hasattr(csv_writer, "writeheader"): # if we're running a version of Python >= 2.7, then this is built in. Use it
 		csv_writer.writeheader()
 	else:
-		write_header(csv_writer)
+		write_header(csv_writer) # if not, use our own implementation below
 
 	csv_writer.writerows(image_data)
 
