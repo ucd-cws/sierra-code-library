@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>code_library.common.image.remote_cam &mdash; CWS Toolbox and Sierra Code Library 1.4.6 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1.4.6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="top" title="CWS Toolbox and Sierra Code Library 1.4.6 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">CWS Toolbox and Sierra Code Library 1.4.6 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for code_library.common.image.remote_cam</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">csv</span>
+
+<span class="kn">from</span> <span class="nn">code_library.common</span> <span class="kn">import</span> <span class="n">image</span>
+<span class="kn">from</span> <span class="nn">code_library.common</span> <span class="kn">import</span> <span class="n">utils2</span>
+
+
+<span class="k">def</span> <span class="nf">_extract_baro_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">strip_units</span><span class="p">:</span>
+		<span class="n">regex</span> <span class="o">=</span> <span class="s">&#39;^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)&#39;</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">regex</span> <span class="o">=</span> <span class="s">&#39;^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3}\sinHg).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)&#39;</span>
+	<span class="n">capture_group</span> <span class="o">=</span> <span class="mi">1</span>
+	<span class="n">tag</span> <span class="o">=</span> <span class="s">&quot;ImageDescription&quot;</span>
+
+	<span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">extract_value_from_exif</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">regex</span><span class="p">,</span> <span class="n">capture_group</span><span class="p">)</span>
+	
+<span class="k">def</span> <span class="nf">_extract_airtemp_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">strip_units</span><span class="p">:</span>
+		<span class="n">regex</span> <span class="o">=</span> <span class="s">&#39;^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\-?\d+).{1}[FC].*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)&#39;</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">regex</span> <span class="o">=</span> <span class="s">&#39;^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3})\sinHg.+?(\-?\d+.{1}[FC]).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)&#39;</span>
+	<span class="n">capture_group</span> <span class="o">=</span> <span class="mi">2</span>
+	<span class="n">tag</span> <span class="o">=</span> <span class="s">&quot;ImageDescription&quot;</span>
+
+	<span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">extract_value_from_exif</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">regex</span><span class="p">,</span> <span class="n">capture_group</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_extract_datetime_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">):</span>
+	<span class="n">regex</span> <span class="o">=</span> <span class="s">&#39;^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3}\sinHg).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)&#39;</span>
+	<span class="n">capture_group</span> <span class="o">=</span> <span class="mi">2</span>
+	<span class="n">tag</span> <span class="o">=</span> <span class="s">&quot;ImageDescription&quot;</span>
+
+	<span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">extract_value_from_exif</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">regex</span><span class="p">,</span> <span class="n">capture_group</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_extract_site_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">):</span>
+	<span class="n">regex</span> <span class="o">=</span> <span class="s">&#39;^\d{0,4}INFORMATION_STRIP_ON__TAG\s+(\d{2}\.\d{1,3}\sinHg).*?(\d{2}\/\d{2}\/\d{2}\s+\d{2}\:\d{2}\s[AP]{1}M)\s+([a-zA-Z0-9]+)&#39;</span>
+	<span class="n">capture_group</span> <span class="o">=</span> <span class="mi">3</span>
+	<span class="n">tag</span> <span class="o">=</span> <span class="s">&quot;ImageDescription&quot;</span>
+
+	<span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">extract_value_from_exif</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">regex</span><span class="p">,</span> <span class="n">capture_group</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_remote_cam_image_metadata"><a class="viewcode-back" href="../../../../code_reference/remote_cam.html#code_library.common.image.remote_cam.get_remote_cam_image_metadata">[docs]</a><span class="k">def</span> <span class="nf">get_remote_cam_image_metadata</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">strip_units</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Runs metadata extraction functions on a single Moultrie camera image. Extracts site, datetime, baropressure, and airtemp, returning a dictionary with those keys plus &quot;filename&quot;</span>
+<span class="sd">	:param image_name: the path to the image to extract the data from</span>
+<span class="sd">	:param strip_units: whether or not to remove units from values that would include them. Default, True</span>
+<span class="sd">	:return: dict : keys &#39;site&#39;,&#39;datetime&#39;,&#39;baropressure&#39;,&#39;filename&#39;,&#39;airtemp&#39;</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">image_data</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="n">image_data</span><span class="p">[</span><span class="s">&#39;site&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_extract_site_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">)</span>
+	<span class="n">image_data</span><span class="p">[</span><span class="s">&#39;datetime&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_extract_datetime_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">)</span>
+	<span class="n">image_data</span><span class="p">[</span><span class="s">&#39;baropressure&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_extract_baro_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">)</span>
+	<span class="n">image_data</span><span class="p">[</span><span class="s">&#39;filename&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_name</span>
+	<span class="n">image_data</span><span class="p">[</span><span class="s">&#39;airtemp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_extract_airtemp_from_image</span><span class="p">(</span><span class="n">image_name</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="n">image_data</span>
+</div>
+<div class="viewcode-block" id="get_image_metadata"><a class="viewcode-back" href="../../../../code_reference/remote_cam.html#code_library.common.image.remote_cam.get_image_metadata">[docs]</a><span class="k">def</span> <span class="nf">get_image_metadata</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">strip_units</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		An alias for get_baropressures_from_image_folder</span>
+
+<span class="sd">	:param folder:</span>
+<span class="sd">	:param strip_units:</span>
+<span class="sd">	:return:</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">get_baropressures_from_image_folder</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="get_baropressures_from_image_folder"><a class="viewcode-back" href="../../../../code_reference/remote_cam.html#code_library.common.image.remote_cam.get_baropressures_from_image_folder">[docs]</a><span class="k">def</span> <span class="nf">get_baropressures_from_image_folder</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">strip_units</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Gets the baropressures, datetimes, and sites, from all of the remote camera images in a folder, and creates a dict</span>
+<span class="sd">	for each image with those data. Returns a list containing a dict for each image. image data keys are (&#39;site&#39;,&#39;datetime&#39;,&#39;baropressure&#39;,&#39;filename&#39;)</span>
+<span class="sd">	:param folder: a fully qualified path to a folder containing jpg images with remote-cam baropressures in the EXIF</span>
+<span class="sd">	:return: list of dicts containing image data</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">files</span> <span class="o">=</span> <span class="n">utils2</span><span class="o">.</span><span class="n">listdir_by_ext</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s">&quot;.jpg&quot;</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>  <span class="c"># gets only the jpgs out of the folder</span>
+	<span class="n">image_records</span> <span class="o">=</span> <span class="p">[]</span>
+
+	<span class="n">i</span> <span class="o">=</span> <span class="mi">1</span>
+	<span class="k">for</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+		<span class="n">image_data</span> <span class="o">=</span> <span class="n">get_remote_cam_image_metadata</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">)</span>
+		<span class="n">image_data</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+		<span class="n">image_records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+		<span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+	<span class="k">return</span> <span class="n">image_records</span>
+
+</div>
+<div class="viewcode-block" id="baropressures_to_file"><a class="viewcode-back" href="../../../../code_reference/remote_cam.html#code_library.common.image.remote_cam.baropressures_to_file">[docs]</a><span class="k">def</span> <span class="nf">baropressures_to_file</span><span class="p">(</span><span class="n">input_folder</span><span class="p">,</span> <span class="n">output_file</span><span class="p">,</span> <span class="n">strip_units</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Obtains metadata for all of the remote camera images in an input folder, and writes it out to a csv</span>
+<span class="sd">	:param input_folder: str The folder to get the images from</span>
+<span class="sd">	:param output_file: str The file to write out to</span>
+<span class="sd">	:param strip_units: boolean Whether or not to include units in the data elements that contain them. If True, units will removed from output. If False, they will be included. Default: True</span>
+<span class="sd">	:return: None</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	
+	<span class="n">image_data</span> <span class="o">=</span> <span class="n">get_baropressures_from_image_folder</span><span class="p">(</span><span class="n">input_folder</span><span class="p">,</span> <span class="n">strip_units</span><span class="p">)</span>
+
+	<span class="n">filehandle</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+	<span class="n">keys</span> <span class="o">=</span> <span class="n">image_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+	<span class="n">keys</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>	<span class="c"># doing this as an intermediate because image_data[0].keys().reverse() returns nothing, and instead modifies in place.</span>
+	<span class="n">csv_writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictWriter</span><span class="p">(</span><span class="n">filehandle</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span> <span class="c"># passing in image_data[0].keys() just tells it what the fields to look for. reversing it because usually it comes out last to first</span>
+
+	<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">csv_writer</span><span class="p">,</span> <span class="s">&quot;writeheader&quot;</span><span class="p">):</span> <span class="c"># if we&#39;re running a version of Python &gt;= 2.7, then this is built in. Use it</span>
+		<span class="n">csv_writer</span><span class="o">.</span><span class="n">writeheader</span><span class="p">()</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">_write_header</span><span class="p">(</span><span class="n">csv_writer</span><span class="p">)</span> <span class="c"># if not, use our own implementation below</span>
+
+	<span class="n">csv_writer</span><span class="o">.</span><span class="n">writerows</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+
+	<span class="n">filehandle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+</div>
+<span class="k">def</span> <span class="nf">_write_header</span><span class="p">(</span><span class="n">dict_writer</span><span class="p">):</span>
+	<span class="n">header</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">dict_writer</span><span class="o">.</span><span class="n">fieldnames</span><span class="p">,</span> <span class="n">dict_writer</span><span class="o">.</span><span class="n">fieldnames</span><span class="p">))</span>
+	<span class="n">dict_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">CWS Toolbox and Sierra Code Library 1.4.6 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Nick Santos and Center for Watershed Sciences Staff.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

@@ -41,6 +41,13 @@ def _extract_site_from_image(image_name):
 
 
 def get_remote_cam_image_metadata(image_name, strip_units=True):
+	"""
+		Runs metadata extraction functions on a single Moultrie camera image. Extracts site, datetime, baropressure, and airtemp, returning a dictionary with those keys plus "filename"
+	:param image_name: the path to the image to extract the data from
+	:param strip_units: whether or not to remove units from values that would include them. Default, True
+	:return: dict : keys 'site','datetime','baropressure','filename','airtemp'
+	"""
+
 	image_data = {}
 	image_data['site'] = _extract_site_from_image(image_name)
 	image_data['datetime'] = _extract_datetime_from_image(image_name)
@@ -49,6 +56,17 @@ def get_remote_cam_image_metadata(image_name, strip_units=True):
 	image_data['airtemp'] = _extract_airtemp_from_image(image_name, strip_units)
 
 	return image_data
+
+def get_image_metadata(folder, strip_units=True):
+	"""
+		An alias for get_baropressures_from_image_folder
+
+	:param folder:
+	:param strip_units:
+	:return:
+	"""
+
+	get_baropressures_from_image_folder(folder, strip_units)
 
 
 def get_baropressures_from_image_folder(folder, strip_units=True):
@@ -91,13 +109,13 @@ def baropressures_to_file(input_folder, output_file, strip_units=True):
 	if hasattr(csv_writer, "writeheader"): # if we're running a version of Python >= 2.7, then this is built in. Use it
 		csv_writer.writeheader()
 	else:
-		write_header(csv_writer) # if not, use our own implementation below
+		_write_header(csv_writer) # if not, use our own implementation below
 
 	csv_writer.writerows(image_data)
 
 	filehandle.close()
 
 
-def write_header(dict_writer):
+def _write_header(dict_writer):
 	header = dict(zip(dict_writer.fieldnames, dict_writer.fieldnames))
 	dict_writer.writerow(header)

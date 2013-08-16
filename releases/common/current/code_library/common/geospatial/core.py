@@ -14,9 +14,17 @@ import arcpy
 
 import code_library #@UnresolvedImport
 
-coordinate_systems = os.path.join(arcpy.GetInstallInfo()['InstallDir'],"Coordinate Systems")
-projected_coordinate_systems = os.path.join(coordinate_systems,"Projected Coordinate Systems")
-teale_albers = os.path.join(projected_coordinate_systems,"State Systems","NAD 1983 California (Teale) Albers (Meters).prj")
+try:
+	from code_library.common import log #@UnresolvedImport
+except:
+	pass # fail silently - this will only be used in projects that have a log module
+
+try:
+	coordinate_systems = os.path.join(arcpy.GetInstallInfo()['InstallDir'], "Coordinate Systems")
+	projected_coordinate_systems = os.path.join(coordinate_systems, "Projected Coordinate Systems")
+	teale_albers = os.path.join(projected_coordinate_systems, "State Systems","NAD 1983 California (Teale) Albers (Meters).prj")
+except:
+	log.warning("unable to GetInstallInfo for ArcGIS. If you are not using an arcpy project, this is not a big deal and can be ignored")
 
 temp_folder = None
 temp_gdb = None
@@ -24,11 +32,6 @@ raster_count = 0
 
 delims_open = {'mdb':"[",'gdb':"\"",'shp':"\"",'in_memory':""} # a dictionary of field delimiters for use in sql statements. We don't always know that the huc layer will be stored
 delims_close = {'mdb':"]",'gdb':"\"",'shp':"\"",'in_memory':""} # in one type of field or another. These two are just extension based lookups
-
-try:
-	from code_library.common import log #@UnresolvedImport
-except:
-	pass # fail silently - this will only be used in projects that have a log module 
 
 class geospatial_object:
 	
