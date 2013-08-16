@@ -35,7 +35,7 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['pandas', 'arcpy', 'PIL', 'Image', 'PIL.ExifTags', 'PIL.ExifTags.TAGS' ] # need to mock up these modules that won't be installed in order to autobuild our docs
+MOCK_MODULES = ['pandas', 'arcpy', 'PIL', 'Image', 'PIL.ExifTags', 'PIL.ExifTags.TAGS', 'pyodbc' ] # need to mock up these modules that won't be installed in order to autobuild our docs
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
