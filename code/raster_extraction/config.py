@@ -2,18 +2,18 @@ import os
 
 run_dir = os.getcwd()
 
-use_point_estimate = False # warning: If this is set to true, the zone_field should NOT be the primary key (OID) field
+use_point_estimate = False  # warning: If this is set to true, the zone_field should NOT be the primary key (OID) field
 							# because it will be changed
 zone_field = "NID"
 
-flag_subprocess_zonal_stats = True # default: False - True means that it will run the zonal stats in a subprocess. Slower, but works around some arcgis issues
+flag_subprocess_zonal_stats = False # default: False - True means that it will run the zonal stats in a subprocess. Slower, but works around some arcgis issues
 
 bcm_folder = None
 usgs_issues = "usgs_issues"
 usgs_data = "usgs_data"
 elev_cm = "elev_extra"
 round2 = "round2"
-current_datasets = {"round2":round2}
+current_datasets = {"round2":round2} # why is this like this?
 
 #temp_gdb = support.check_gdb(run_dir, "temp")
 
