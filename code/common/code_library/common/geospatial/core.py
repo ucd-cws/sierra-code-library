@@ -33,14 +33,15 @@ raster_count = 0
 delims_open = {'mdb':"[",'gdb':"\"",'shp':"\"",'in_memory':""} # a dictionary of field delimiters for use in sql statements. We don't always know that the huc layer will be stored
 delims_close = {'mdb':"]",'gdb':"\"",'shp':"\"",'in_memory':""} # in one type of field or another. These two are just extension based lookups
 
+
 class geospatial_object:
 	
 	def setup_object(self):
 		'''like __init__ but won't be overridden by subclasses'''
 		
-		if 'setup_run' in self.__dict__: # check if we have this key in a safe way
-			if self.setup_run is True: # have we already run this function
-				return # don't run it again
+		if 'setup_run' in self.__dict__:  # check if we have this key in a safe way
+			if self.setup_run is True:  # have we already run this function
+				return  # don't run it again
 		
 		self.setup_run = True
 		self.gdb = None
@@ -49,8 +50,7 @@ class geospatial_object:
 	
 	def check_temp(self):
 		self.setup_object()
-		
-		
+
 		if not self.temp_folder or not self.temp_gdb:
 			try:
 				self.temp_folder = tempfile.mkdtemp()
@@ -194,12 +194,12 @@ class data_file(geospatial_object):
 		
 		return True
 
-def generate_fast_filename(name_base = "xt",return_full = True):
+def generate_fast_filename(name_base="xt", return_full=True, scratch=True):
 	'''uses the in_memory workspace and calls generate_gdb_filename with that as the gdb'''
 	
-	return generate_gdb_filename(name_base,return_full,"in_memory")
+	return generate_gdb_filename(name_base, return_full, "in_memory", scratch)
 
-def generate_gdb_filename(name_base = "xt",return_full = True,gdb=None):
+def generate_gdb_filename(name_base="xt", return_full=True, gdb=None, scratch=False):
 	'''returns the filename and the gdb separately for use in some tools'''
 	if gdb is None:
 		temp_gdb = get_temp_gdb()
@@ -207,7 +207,10 @@ def generate_gdb_filename(name_base = "xt",return_full = True,gdb=None):
 		temp_gdb = gdb
 		
 	try:
-		filename = arcpy.CreateUniqueName(name_base,temp_gdb)
+		if scratch:
+			filename = arcpy.CreateScratchName(name_base, workspace=temp_gdb)
+		else:
+			filename = arcpy.CreateUniqueName(name_base, temp_gdb)
 	except:
 		log.error("Couln't create GDB filename - %s" % traceback.format_exc())
 		raise

@@ -42,8 +42,8 @@ def percent_overlap(feature_one, feature_two, dissolve=False):
 		'percent_overlap': None,
 		'intersect_area': None,
 		'union_area': None,
-		'overlap_initial_perspective': None,
-		'overlap_final_perpsective': None,
+		'overlap_init_perspective': None,
+		'overlap_final_perspective': None,
 	}
 
 	if dissolve:
@@ -127,7 +127,7 @@ def centroid_distance(features=[], spatial_reference=None, max_distance=None, di
 	all_centroids = []
 	for feature in features:
 		try:
-			all_centroids += get_centroids(feature, dissolve=dissolve) # merge, don't append
+			all_centroids += get_centroids(feature, dissolve=dissolve)  # merge, don't append
 		except:
 			continue
 
@@ -135,22 +135,22 @@ def centroid_distance(features=[], spatial_reference=None, max_distance=None, di
 		log.warning("No centroids generated - something probably went wrong")
 		return False
 
-	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference = spatial_reference)
+	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference=spatial_reference)
 	log.write("Point File located at %s" % point_file)
 	out_table = geospatial.generate_gdb_filename("out_table",return_full=True)
 	log.write("Output Table will be located at %s" % out_table)
 	
 	try:
-		arcpy.PointDistance_analysis(point_file,point_file,out_table,max_distance)
+		arcpy.PointDistance_analysis(point_file, point_file, out_table, max_distance)
 	except:
 		log.error("Couldn't run PointDistance - %s" % traceback.format_exc())
 	
 	if return_file:
-		return out_table,point_file
+		return out_table, point_file
 	else:
 		return out_table
 
-def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False,return_file=False):
+def simple_centroid_distance(feature1, feature2, spatial_reference, dissolve=False,return_file=False):
 	'''wraps centroid_distance and requires that each feature only has 1 polygon in it. Returns the distance value instead of the table. Doesn't check
 		whether or not each file has only one polygon, so it will return the FIRST distance value in the out_table, regardless of what it actually is. Don't use this unless you
 		are sure you can pass in the correct data'''
@@ -158,7 +158,7 @@ def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False,
 	if not feature1 or not feature2:
 		raise ValueError("feature1 or feature2 is not defined")
 	
-	out_table, point_file = centroid_distance((feature1,feature2),spatial_reference,dissolve=dissolve,return_file=True) # always return file here, but we'll filter it below
+	out_table, point_file = centroid_distance((feature1, feature2), spatial_reference,dissolve=dissolve,return_file=True) # always return file here, but we'll filter it below
 	
 	if out_table is False:
 		return False
@@ -213,7 +213,7 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	log.write(str(path_parts))
 	arcpy.CreateFeatureclass_management(path_parts[0],path_parts[1],data_type,'','','',spatial_reference)
 	
-	valid_datatypes = (arcpy.Point,arcpy.Polygon,arcpy.Polyline,arcpy.Multipoint)
+	valid_datatypes = (arcpy.Point, arcpy.Polygon, arcpy.Polyline, arcpy.Multipoint)
 	
 	log.write("writing shapes to %s" % filename)
 	inserter = arcpy.InsertCursor(filename)
@@ -248,7 +248,8 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	del inserter
 	
 	return filename
-	
+
+
 def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False, as_file=False):
 	"""
 		Given an input polygon, this function returns a list of arcpy.Point objects that represent the centroids
@@ -334,13 +335,13 @@ def centroid_feature_to_point(feature,as_file=False):
 	if as_file: #if asfile, return the filename, otherwise, make and return the point_array
 		return t_name
 
-	curs = arcpy.SearchCursor(t_name) # open up the output
+	curs = arcpy.SearchCursor(t_name)  # open up the output
 	
 	points = []
 	for record in curs:
 		points.append(record.shape.getPart()) # get the shape's point
 	
-	arcpy.Delete_management(t_name) # clean up the in_memory workspace
+	arcpy.Delete_management(t_name)  # clean up the in_memory workspace
 	del curs
 	
 	return points
