@@ -2,7 +2,7 @@ from _winreg import *
 import os
 from distutils.sysconfig import get_python_lib
 
-curdir = os.getcwd()
+curdir = os.path.dirname(__file__)
 
 print "Registering location in system registry at HKEY_CURRENT_USER\Software\CWS\code_library\location"
 print "Registering location as %s" % curdir
