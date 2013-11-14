@@ -1,3 +1,7 @@
+**** 1.4.6 ****
+Imaging tools
+Migration of some percent overlap and centroid distance code to code library
+
 **** 1.4 ****
 Mostly bug fixes
 

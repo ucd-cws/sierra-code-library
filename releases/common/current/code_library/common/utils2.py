@@ -39,3 +39,8 @@ def _check_ext(item, extension):
 		return True
 	else:
 		return False
+
+
+def semicolon_split_to_array(value_table): # takes an arcgis value_table (a default for some ArcGIS inputs and parses them to a list)
+	# it's possible that there's a better way to do this, depending on how the value_table construct is written.
+	return str(value_table).split(';')

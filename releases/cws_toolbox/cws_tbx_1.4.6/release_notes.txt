@@ -1,0 +1,35 @@
+**** 1.4.6 ****
+Imaging tools
+Migration of some percent overlap and centroid distance code to code library
+
+**** 1.4 ****
+Mostly bug fixes
+
+**** 1.3.1 ****
+* Added HUC Tools and fixed bug in logger
+
+**** 1.3 ****
+* Added Simple Centroid Distance Tool
+* HUC Tools to come
+
+
+**** 1.22 ****
+* Updated deduplicate by column to process tables as well as features
+
+**** Toolbox 1.2 and 1.21 ****
+
+* fixed and enhanced deduplicate by column code
+* Added Lidar Toolbox and tools for cleaning and scaling the data
+
+**** Toolbox 1.1 ****
+
+* Added Deduplicate by Column Tool - Still no help text for it
+* Fixed bugs
+* Put in place infrastructure for more common code
+
+
+**** Toolbox 1.01 ****
+
+* Bugfix to the megatable grouping script. converting the input to float before
+checking if it was None resulted in a crash
+* clarified the log messages a bit so that the user has a better idea of the progress of the script

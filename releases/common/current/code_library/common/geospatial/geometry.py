@@ -12,7 +12,103 @@ import code_library
 from code_library.common import log
 from code_library.common.geospatial import core as geospatial
 
-def centroid_distance(features = [],spatial_reference = None,max_distance=None,dissolve=False,return_file=False):
+
+def get_area(feature_class):
+	'''returns the total area of a feature class'''
+
+	temp_fc = geospatial.generate_gdb_filename(return_full=True)
+	arcpy.CalculateAreas_stats(feature_class, temp_fc)
+	area_field = "F_AREA" # this is hardcoded, but now guaranteed because it is added to a copy and the field is updated if it already exists
+
+	area_curs = arcpy.SearchCursor(temp_fc)
+	total_area = 0
+	for row in area_curs:
+		total_area += row.getValue(area_field)
+	del row
+	del area_curs
+
+	return total_area
+
+
+def percent_overlap(feature_one, feature_two, dissolve=False):
+	"""
+	ArcGIS 10.1 and up. Not for 10.0
+	:param feature_one:
+	:param feature_two:
+	:param dissolve:
+	"""
+
+	results = {
+		'percent_overlap': None,
+		'intersect_area': None,
+		'union_area': None,
+		'overlap_init_perspective': None,
+		'overlap_final_perspective': None,
+	}
+
+	if dissolve:
+		dissolved_init = geospatial.fast_dissolve(feature_one)
+		dissolved_final = geospatial.fast_dissolve(feature_two)
+	else:
+		dissolved_init = feature_one
+		dissolved_final = feature_two
+
+	try:
+		log.write("Getting area of Initial...",)
+		total_init_area = get_area(dissolved_init)
+
+		log.write("Getting area of Final...",)
+		total_final_area = get_area(dissolved_final)
+	except:
+		log.error("Couldn't get the areas")
+		raise
+
+	try:
+		log.write("Intersecting...",)
+		intersect = geospatial.generate_fast_filename()
+		arcpy.Intersect_analysis([dissolved_init, dissolved_final], intersect)
+
+		int_curs = arcpy.da.SearchCursor(intersect, field_names=['SHAPE@AREA', ])
+		int_areas = []
+		for row in int_curs:
+			int_areas.append(row[0])
+		intersect_area = sum(int_areas)
+		results['intersect_area'] = intersect_area
+	except:
+		log.error("Couldn't Intersect")
+		raise
+
+	try:
+		log.write("Unioning...",)
+		if len(int_areas) > 0:  # short circuit - if it's 0, we can return 0 as the value
+			union = geospatial.generate_fast_filename()
+			arcpy.Union_analysis([dissolved_init, dissolved_final], union)
+		else:
+			return results
+
+		union_curs = arcpy.da.SearchCursor(union, field_names=['SHAPE@AREA'])
+		union_areas = []
+		for row in union_curs:
+			union_areas.append(row[0])
+		union_area = sum(union_areas)
+		results['union_area'] = union_area
+	except:
+		log.error("Couldn't Union")
+		raise
+
+	log.write("Deleting temporary datasets and Calculating")
+
+	arcpy.Delete_management(intersect)  # clean up - it's an in_memory dataset
+	arcpy.Delete_management(union)  # clean up - it's an in_memory dataset
+
+	results['percent_overlap'] = (float(intersect_area) / float(union_area)) * 100
+	results['overlap_init_perspective'] = (float(intersect_area) / float(total_init_area)) * 100
+	results['overlap_final_perspective'] = (float(intersect_area) / float(total_final_area)) * 100
+
+	return results
+
+
+def centroid_distance(features=[], spatial_reference=None, max_distance=None, dissolve=False, return_file=False):
 	
 	'''takes multiple input feature classes, retrieves the centroids of every polygon as points, and writes those points to a file, before running
 		PointDistance_analysis() on the data. It returns the out_table given by Point Distance. This is most predictable when two feature classes with a single feature
@@ -31,7 +127,7 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None,d
 	all_centroids = []
 	for feature in features:
 		try:
-			all_centroids += get_centroids(feature,dissolve=dissolve) # merge, don't append
+			all_centroids += get_centroids(feature, dissolve=dissolve)  # merge, don't append
 		except:
 			continue
 
@@ -39,22 +135,22 @@ def centroid_distance(features = [],spatial_reference = None,max_distance=None,d
 		log.warning("No centroids generated - something probably went wrong")
 		return False
 
-	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference = spatial_reference)
+	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference=spatial_reference)
 	log.write("Point File located at %s" % point_file)
 	out_table = geospatial.generate_gdb_filename("out_table",return_full=True)
 	log.write("Output Table will be located at %s" % out_table)
 	
 	try:
-		arcpy.PointDistance_analysis(point_file,point_file,out_table,max_distance)
+		arcpy.PointDistance_analysis(point_file, point_file, out_table, max_distance)
 	except:
 		log.error("Couldn't run PointDistance - %s" % traceback.format_exc())
 	
 	if return_file:
-		return out_table,point_file
+		return out_table, point_file
 	else:
 		return out_table
 
-def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False,return_file=False):
+def simple_centroid_distance(feature1, feature2, spatial_reference, dissolve=False,return_file=False):
 	'''wraps centroid_distance and requires that each feature only has 1 polygon in it. Returns the distance value instead of the table. Doesn't check
 		whether or not each file has only one polygon, so it will return the FIRST distance value in the out_table, regardless of what it actually is. Don't use this unless you
 		are sure you can pass in the correct data'''
@@ -62,7 +158,7 @@ def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False,
 	if not feature1 or not feature2:
 		raise ValueError("feature1 or feature2 is not defined")
 	
-	out_table,point_file = centroid_distance((feature1,feature2),spatial_reference,dissolve=dissolve,return_file=True) # always return file here, but we'll filter it below
+	out_table, point_file = centroid_distance((feature1, feature2), spatial_reference,dissolve=dissolve,return_file=True) # always return file here, but we'll filter it below
 	
 	if out_table is False:
 		return False
@@ -83,7 +179,7 @@ def simple_centroid_distance(feature1,feature2,spatial_reference,dissolve=False,
 	log.write("Centroid Distance is %s" % distance)
 	
 	if return_file:
-		return distance,out_table,point_file
+		return distance, out_table, point_file
 	else:
 		return distance	
 	
@@ -117,7 +213,7 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	log.write(str(path_parts))
 	arcpy.CreateFeatureclass_management(path_parts[0],path_parts[1],data_type,'','','',spatial_reference)
 	
-	valid_datatypes = (arcpy.Point,arcpy.Polygon,arcpy.Polyline,arcpy.Multipoint)
+	valid_datatypes = (arcpy.Point, arcpy.Polygon, arcpy.Polyline, arcpy.Multipoint)
 	
 	log.write("writing shapes to %s" % filename)
 	inserter = arcpy.InsertCursor(filename)
@@ -152,7 +248,8 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	del inserter
 	
 	return filename
-	
+
+
 def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False, as_file=False):
 	"""
 		Given an input polygon, this function returns a list of arcpy.Point objects that represent the centroids
@@ -238,13 +335,13 @@ def centroid_feature_to_point(feature,as_file=False):
 	if as_file: #if asfile, return the filename, otherwise, make and return the point_array
 		return t_name
 
-	curs = arcpy.SearchCursor(t_name) # open up the output
+	curs = arcpy.SearchCursor(t_name)  # open up the output
 	
 	points = []
 	for record in curs:
 		points.append(record.shape.getPart()) # get the shape's point
 	
-	arcpy.Delete_management(t_name) # clean up the in_memory workspace
+	arcpy.Delete_management(t_name)  # clean up the in_memory workspace
 	del curs
 	
 	return points
