@@ -212,15 +212,16 @@ def generate_gdb_filename(name_base="xt", return_full=True, gdb=None, scratch=Fa
 		else:
 			filename = arcpy.CreateUniqueName(name_base, temp_gdb)
 	except:
-		log.error("Couln't create GDB filename - %s" % traceback.format_exc())
+		log.error("Couldn't create GDB filename - %s" % traceback.format_exc())
 		raise
 	
-	code_library.temp_datasets.append(filename) # add it to the tempfile registry
+	code_library.temp_datasets.append(filename)  # add it to the tempfile registry
 	
 	if return_full:
 		return filename
 	else:
-		return os.path.split(filename)[1],temp_gdb
+		return os.path.split(filename)[1], temp_gdb
+
 
 def make_temp():
 
@@ -230,23 +231,23 @@ def make_temp():
 	
 	if temp_gdb and raster_count < 100:
 		raster_count += 1
-		return temp_folder,temp_gdb
+		return temp_folder, temp_gdb
 	else:
 		raster_count = 0
 	
 	try:
 		temp_folder = tempfile.mkdtemp()
-		temp_gdb = os.path.join(temp_folder,"temp.gdb")
+		temp_gdb = os.path.join(temp_folder, "temp.gdb")
 		if not arcpy.Exists(temp_gdb):
 			if 'log' in sys.modules:
-				log.write("Creating %s" % temp_gdb,True)
-			arcpy.CreateFileGDB_management(temp_folder,"temp.gdb")
-			return temp_folder,temp_gdb
+				log.write("Creating %s" % temp_gdb, True)
+			arcpy.CreateFileGDB_management(temp_folder, "temp.gdb")
+			return temp_folder, temp_gdb
 	except:
 		return False, False
 
 def get_temp_folder():
-	temp_folder,temp_gdb = make_temp()
+	temp_folder, temp_gdb = make_temp()
 	if temp_folder:
 		return temp_folder
 	else:
@@ -254,13 +255,13 @@ def get_temp_folder():
 	
 def get_temp_gdb():
 	
-	temp_folder,temp_gdb = make_temp()
+	temp_folder, temp_gdb = make_temp()
 	if temp_gdb:
 		return temp_gdb
 	else:
 		raise IOError("Couldn't create temp gdb or folder")
 
-def check_spatial_filename(filename = None, create_filename = True, check_exists = True,allow_fast = False):
+def check_spatial_filename(filename=None, create_filename=True, check_exists=True, allow_fast = False):
 	'''usage: filename = check_spatial_filename(filename = None, create_filename = True, check_exists = True). Checks that we have a filename, optionally creates one, makes paths absolute,
 		and ensures that they don't exist yet when passed in. Caller may disable the check_exists (for speed) using check_exists = False
 	'''
