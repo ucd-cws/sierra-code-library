@@ -4,6 +4,8 @@ Created on Mar 3, 2012
 @author: Nick
 '''
 
+__version__ = '1.4.6'
+
 import logging
 
 import arcpy

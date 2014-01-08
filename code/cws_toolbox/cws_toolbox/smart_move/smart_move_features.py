@@ -22,7 +22,7 @@ class SmartMoveFeatures(object):
 			displayName="Feature Class",
 			name="feature_class",
 			direction="Input",
-			datatype="FeatureClass",
+			datatype="DEFeatureClass",
             parameterType="Required",
 			multiValue=False
 		)
@@ -40,7 +40,7 @@ class SmartMoveFeatures(object):
 			displayName="Root Folders to Search",
 			name="root_folders",
 			direction="Input",
-			datatype="Folder",
+			datatype="DEFolder",
             parameterType="Required",
 			multiValue=True
 		)
@@ -49,12 +49,12 @@ class SmartMoveFeatures(object):
 			displayName="Exclude Folder if Matches This String",
 			name="exclude_folders",
 			direction="Input",
-			datatype="String",
-            parameterType="Required",
+			datatype="GPString",
+            parameterType="Optional",
 			multiValue=True
 		)
 
-		params = [features, output_location, root_folders_to_search]
+		params = [features, output_location, root_folders_to_search, exclude_strings]
 		return params
 
 

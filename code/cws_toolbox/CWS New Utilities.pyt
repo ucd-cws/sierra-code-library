@@ -1,6 +1,6 @@
 __author__ = 'nrsantos'
 
-from smart_move.smart_move_features import SamrtMoveFeatures
+from cws_toolbox.smart_move.smart_move_features import SmartMoveFeatures
 
 class Toolbox(object):
 	def __init__(self):

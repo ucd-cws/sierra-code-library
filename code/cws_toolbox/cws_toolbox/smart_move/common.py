@@ -8,6 +8,7 @@ from code_library.common import log
 
 
 def move_and_update_feature_class(folders,original,destination):
+
 	try:
 		arcpy.CopyFeatures_management(original,destination)
 
@@ -28,7 +29,7 @@ def verify(original, destination):
 	orig_desc = arcpy.Describe(original)
 	dest_desc = arcpy.Describe(destination)
 
-	if orig_desc.extent.equals(dest_desc.extent):
+	if orig_desc.extent.equals(dest_desc.extent):  # using a simple geometry check to confirm that they are the same extent. If this changed, then we have a problem. Mostly concerned about whether or not all the features got copied (often zero or all)
 		return True
 	else:
 		log.warning("Can't verify that copied features are identical - will not delete source.", True)

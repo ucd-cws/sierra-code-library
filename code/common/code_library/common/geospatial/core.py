@@ -194,10 +194,12 @@ class data_file(geospatial_object):
 		
 		return True
 
+
 def generate_fast_filename(name_base="xt", return_full=True, scratch=True):
 	'''uses the in_memory workspace and calls generate_gdb_filename with that as the gdb'''
 	
 	return generate_gdb_filename(name_base, return_full, "in_memory", scratch)
+
 
 def generate_gdb_filename(name_base="xt", return_full=True, gdb=None, scratch=False):
 	'''returns the filename and the gdb separately for use in some tools'''
@@ -223,17 +225,21 @@ def generate_gdb_filename(name_base="xt", return_full=True, gdb=None, scratch=Fa
 		return os.path.split(filename)[1], temp_gdb
 
 
-def make_temp():
+def make_temp(override=False):
+	"""
+		override enables us to say just "give me a new temp gdb and don't try to manage it"
+	"""
 
 	global temp_gdb
 	global temp_folder
 	global raster_count
-	
-	if temp_gdb and raster_count < 100:
-		raster_count += 1
-		return temp_folder, temp_gdb
-	else:
-		raster_count = 0
+
+	if not override:
+		if temp_gdb and raster_count < 100:
+			raster_count += 1
+			return temp_folder, temp_gdb
+		else:
+			raster_count = 0
 	
 	try:
 		temp_folder = tempfile.mkdtemp()
