@@ -304,10 +304,11 @@ def get_spatial_reference(dataset = None):
 	
 	return sr
 
-def fast_dissolve(features,raise_error = True,base_name="dissolved"):
+
+def fast_dissolve(features, raise_error=True, base_name="dissolved"):
 	out_name = generate_gdb_filename(base_name)
 	try:
-		arcpy.Dissolve_management(features,out_name)
+		arcpy.Dissolve_management(features, out_name)
 	except:
 		if raise_error is False:
 			log.warning("Couldn't dissolve. Returning non-dissolved layer")
@@ -315,3 +316,25 @@ def fast_dissolve(features,raise_error = True,base_name="dissolved"):
 		else:
 			raise
 	return out_name
+
+
+def write_column_by_key(layer, layer_field, layer_key, results_dict):
+	"""
+		Writes a column to a layer (doesn't create the field) using a key in the layer to match against a results dictionary-
+
+	:param str layer: The layer to modify
+	:param str layer_field: The field in the layer that should be changed
+	:param str layer_key: The key field in the layer that will be used for lookups in the results
+	:param dict results_dict: The dictionary that the key field will be used to look up results in
+	"""
+
+	# for every row
+	arc_curs = arcpy.UpdateCursor(layer)
+	for row in arc_curs:
+		cur_key = row.getValue(layer_key)
+
+		if not cur_key in results_dict:  # skip it if it's not there
+			continue
+
+		row.setValue(layer_field, results_dict[cur_key])
+		arc_curs.updateRow(row)
