@@ -1,6 +1,25 @@
 from _winreg import *
 import os
+import sys
+import subprocess
 from distutils.sysconfig import get_python_lib
+import platform
+
+require_32bit = True
+current_file = os.path.abspath(__file__)
+current_directory = os.path.split(current_file)[0]  # get the location of the install script
+architecture = platform.architecture()[0]  # just get 32/64
+
+## Detect if it's being run by the 64 bit Python instead of the 32bit where we'll need it. Relaunch if it is
+if require_32bit and architecture != "32bit":
+	print "Relaunching 32bit version"
+	new_path = sys.executable.replace("x64", "")
+	base_python = os.path.split(new_path)[0]
+	subprocess.call([new_path, current_file])  # re call the script, but with the 32 bit interpreter
+	raw_input("launched version under 32 bit python. Closing original version. Hit any key to exit.")
+	sys.exit()
+
+
 
 curdir = os.getcwd()
 
