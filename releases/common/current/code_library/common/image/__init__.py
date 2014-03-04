@@ -1,7 +1,12 @@
 __author__ = 'nrsantos'
 
-from PIL import Image
-from PIL.ExifTags import TAGS
+try:
+	from PIL import Image
+	from PIL.ExifTags import TAGS
+except:
+	from code_library.common import log
+	log.warning("Warning: Couldn't load PIL. Image tools (relying on code_library.common.image functions will fail). You can safely ignore this warning for many tools")
+
 import logging
 import re
 

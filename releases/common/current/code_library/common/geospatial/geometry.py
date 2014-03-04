@@ -13,6 +13,18 @@ from code_library.common import log
 from code_library.common.geospatial import core as geospatial
 
 
+class Comparison(object):
+
+	def __init__(self):
+		self.centroid_distance = None
+		self.centroid_direction = None
+		self.percent_overlap = None
+		self.percent_overlap_initial = None
+		self.percent_overlap_final = None
+		self.overlap_union_area = None
+		self.overlap_intersect_area = None
+
+
 def get_area(feature_class):
 	'''returns the total area of a feature class'''
 
@@ -108,7 +120,7 @@ def percent_overlap(feature_one, feature_two, dissolve=False):
 	return results
 
 
-def centroid_distance(features=[], spatial_reference=None, max_distance=None, dissolve=False, return_file=False):
+def centroid_distance(features=[], spatial_reference=None, max_distance=None, dissolve=False, return_file=False, centroid_direction=False):
 	
 	'''takes multiple input feature classes, retrieves the centroids of every polygon as points, and writes those points to a file, before running
 		PointDistance_analysis() on the data. It returns the out_table given by Point Distance. This is most predictable when two feature classes with a single feature
@@ -129,62 +141,96 @@ def centroid_distance(features=[], spatial_reference=None, max_distance=None, di
 		try:
 			all_centroids += get_centroids(feature, dissolve=dissolve)  # merge, don't append
 		except:
-			continue
+			continue  # TODO: Either change this or comment on why it silently continues
 
 	if len(all_centroids) == 0:
 		log.warning("No centroids generated - something probably went wrong")
 		return False
 
-	point_file = write_features_from_list(all_centroids, "POINT",spatial_reference=spatial_reference)
+	point_file = write_features_from_list(all_centroids, "POINT", spatial_reference=spatial_reference)
 	log.write("Point File located at %s" % point_file)
-	out_table = geospatial.generate_gdb_filename("out_table",return_full=True)
+	out_table = geospatial.generate_gdb_filename("out_table", return_full=True)
 	log.write("Output Table will be located at %s" % out_table)
 	
 	try:
 		arcpy.PointDistance_analysis(point_file, point_file, out_table, max_distance)
 	except:
 		log.error("Couldn't run PointDistance - %s" % traceback.format_exc())
-	
-	if return_file:
-		return out_table, point_file
-	else:
-		return out_table
+		return False
 
-def simple_centroid_distance(feature1, feature2, spatial_reference, dissolve=False,return_file=False):
-	'''wraps centroid_distance and requires that each feature only has 1 polygon in it. Returns the distance value instead of the table. Doesn't check
+	if centroid_direction:
+		direction = point_direction(all_centroids, spatial_reference=spatial_reference)
+		return {"out_table": out_table, "point_file": point_file, "centroid_direction": direction}  # start just returning a dictionary instead of positional values
+	else:
+		return {"out_table": out_table, "point_file": point_file, }  # start just returning a dictionary instead of positional values
+
+
+def point_direction(centroids=None, point1=None, point2=None, spatial_reference=None):
+	"""
+		Given two points out of a centroid distance calculation, it will run them through Near_analysis and determine the angle, then open
+		that result and retrieve the value, returning it. If given more than two points, it will ignore them
+
+		centroids: optional. an interable object containing two geometry objects (as retrieved in centroid_distance). The first one will be used as the primary
+		point1: optional. a feature class to use as the primary point.
+		point2: optional. a feature class to use as the secondary license. Use either "centroids" or ("point1" and "point2")
+		spatial_reference: optional. Used if passing in centroids to write features correctly.
+	"""
+
+
+	if centroids and (point1 or point2):
+		raise ValueError("Please define only the centroids or the feature classes, but not both")
+	elif not centroids or (point1 and point2):
+		raise ValueError("centroids or both point feature classes must be defined")
+
+	if centroids and not spatial_reference:
+		raise ValueError("You must set spatial_reference when passing in centroids")
+
+	if centroids:
+		point1 = write_features_from_list((centroids[0],), "POINT", spatial_reference=spatial_reference)
+		point2 = write_features_from_list((centroids[1],), "POINT", spatial_reference=spatial_reference)
+
+	try:
+		arcpy.Near_analysis(point1, point2, angle=True)
+		reader = arcpy.da.SearchCursor(point1, field_names=("NEAR_ANGLE",))  # open the input features back up and find the near_angle
+		value = reader.next()
+		return value[0]  # arcpy.da values are in a tuple with values ordered by the order they're passed in
+	except:
+		log.error("Unable to get centroid direction")
+		return False
+
+
+def simple_centroid_distance(feature1, feature2, spatial_reference, dissolve=False, return_file=False, centroid_direction=False):
+	"""
+		wraps centroid_distance and requires that each feature only has 1 polygon in it. Returns the distance value instead of the table. Doesn't check
 		whether or not each file has only one polygon, so it will return the FIRST distance value in the out_table, regardless of what it actually is. Don't use this unless you
-		are sure you can pass in the correct data'''
+		are sure you can pass in the correct data
+	"""
 
 	if not feature1 or not feature2:
 		raise ValueError("feature1 or feature2 is not defined")
-	
-	out_table, point_file = centroid_distance((feature1, feature2), spatial_reference,dissolve=dissolve,return_file=True) # always return file here, but we'll filter it below
-	
-	if out_table is False:
+
+	out_attributes = centroid_distance([feature1, feature2], spatial_reference, dissolve=dissolve, return_file=True, centroid_direction=centroid_direction)  # always return file here, but we'll filter it below
+	if out_attributes is False:
 		return False
 	
-	reader = arcpy.SearchCursor(out_table)
+	reader = arcpy.SearchCursor(out_attributes["out_table"])
 	
 	distance = None
 	i = 0
 	for row in reader:
-		if i > 1: # if this is a third iteration of the loop warn the user! The table WILL have two records. One in each direction
-			log.warning("Simple Centroid Disance used, but output table has more than two records (the amount for two points). Likely more than two centroids were generated. Check you inputs and use dissolve=True if you aren't already")
+		if i > 1:  # if this is a third iteration of the loop warn the user! The table WILL have two records. One in each direction
+			log.warning("Simple Centroid Distance used, but output table has more than two records (the amount for two points). Likely more than two centroids were generated. Check you inputs and use dissolve=True if you aren't already")
 			break
 		distance = row.getValue("DISTANCE")
 		i+=1
 		
 	del reader
-	
-	log.write("Centroid Distance is %s" % distance)
-	
-	if return_file:
-		return distance, out_table, point_file
-	else:
-		return distance	
+
+	out_attributes['distance'] = distance
+	return out_attributes
 	
 
-def write_features_from_list(data = None, data_type="POINT",filename = None,spatial_reference = None):
+def write_features_from_list(data=None, data_type="POINT", filename=None, spatial_reference=None):
 	'''takes an iterable of feature OBJECTS and writes them out to a new feature class, returning the filename'''	
 	
 	if not spatial_reference:
@@ -204,7 +250,7 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 		log.error("Error in filename passed to write_features_from_list")
 		return False
 	
-	data_types = ("POINT","MULTIPOINT","POLYGON","POLYLINE")
+	data_types = ("POINT", "MULTIPOINT", "POLYGON", "POLYLINE")
 	if not data_type in data_types:
 		log.error("data_type passed into write_features from list is not in data_types")
 		return False
@@ -250,7 +296,7 @@ def write_features_from_list(data = None, data_type="POINT",filename = None,spat
 	return filename
 
 
-def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False, as_file=False):
+def get_centroids(feature=None, method="FEATURE_TO_POINT", dissolve=False, as_file=False):
 	"""
 		Given an input polygon, this function returns a list of arcpy.Point objects that represent the centroids
 
@@ -275,10 +321,10 @@ def get_centroids(feature = None,method="FEATURE_TO_POINT",dissolve=False, as_fi
 		log.warning("Type of feature in get_centroids is not Polygon")
 		return []
 
-	if dissolve: # should we predissolve it?
+	if dissolve:  # should we predissolve it?
 		t_name = geospatial.generate_fast_filename("dissolved")
 		try:
-			arcpy.Dissolve_management(feature,t_name)
+			arcpy.Dissolve_management(feature, t_name, multi_part=True)
 			feature = t_name
 		except:
 			log.warning("Couldn't dissolve features first. Continuing anyway, but the results WILL be different than expected")

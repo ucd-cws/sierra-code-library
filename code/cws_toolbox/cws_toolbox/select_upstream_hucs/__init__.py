@@ -7,6 +7,8 @@ __author__ = "nickrsan"
 
 import traceback
 import sys
+import os
+import csv
 
 import arcpy
 
@@ -17,9 +19,10 @@ huc_to_find_upstream = arcpy.GetParameterAsText(0)
 direction = arcpy.GetParameterAsText(1)
 dissolve_output = arcpy.GetParameter(2)
 include_selected = arcpy.GetParameter(3)
-in_zones_file = arcpy.GetParameterAsText(4)
-in_huc_field = arcpy.GetParameterAsText(5)
-in_ds_field = arcpy.GetParameterAsText(6)
+output_csv = arcpy.GetParameterAsText(4)
+in_zones_file = arcpy.GetParameterAsText(5)
+in_huc_field = arcpy.GetParameterAsText(6)
+in_ds_field = arcpy.GetParameterAsText(7)
 # other parameters to add
 
 if dissolve_output is True or dissolve_output is False:
@@ -75,8 +78,28 @@ if __name__ == "__main__":
 		if direction == "Upstream" or direction == "Both":
 			upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream, dissolve_output, include_selected)
 
+			if output_csv:
+				try:
+					log.write("Writing out CSV file", True)
+					hucs = network.read_hucs(huc_to_find_upstream)
+
+					outlet_hucs = network.find_outlets(hucs)  # remove any hucs that are upstream of other hucs
+
+					csv_rows = []
+					for huc in outlet_hucs:
+						csv_rows += network.watersheds[huc].to_csv(path=None, rows_only=True)
+
+					output_path = os.path.join(output_csv, "huc_network_output.csv")
+
+					file_handle = open(output_path, 'wb')
+					file_writer = csv.writer(file_handle)
+					file_writer.writerows(csv_rows)
+
+				except:
+					log.error("Failed to write out CSV file - %s" % traceback.format_exc())
+
 			if upstream_layer:
-				arcpy.SetParameter(7, upstream_layer)
+				arcpy.SetParameter(8, upstream_layer)
 			else:
 				log.error("No Upstream Layer to Return")
 
@@ -84,7 +107,7 @@ if __name__ == "__main__":
 			downstream_layer = network.get_downstream_from_hucs(huc_to_find_upstream, dissolve_output, include_selected)
 
 			if downstream_layer:
-				arcpy.SetParameter(8, downstream_layer)
+				arcpy.SetParameter(9, downstream_layer)
 			else:
 				log.error("No Downstream Layer to Return")
 	except:

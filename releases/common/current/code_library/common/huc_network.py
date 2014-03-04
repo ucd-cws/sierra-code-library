@@ -4,6 +4,7 @@ progressed from the initial implementation. A future version might include a cla
 import tempfile
 import traceback
 import sys
+import csv
 
 import arcpy
 
@@ -11,41 +12,64 @@ from code_library.common import log #@UnresolvedImport
 from code_library.common import geospatial #@UnresolvedImport
 
 number_selections = 0
-number_selections_threshold = 450 # approximately aligns it with the cleanup for the FGDBs
+number_selections_threshold = 450  # approximately aligns it with the cleanup for the FGDBs
 
-config_selection_chunk_size = 25 # how many hucs should we select in each chunk? Higher is faster, but may run up against arc's limits
+config_selection_chunk_size = 25  # how many hucs should we select in each chunk? Higher is faster, but may run up against arc's limits
 
 zones_layer_name = None
 zones_field = "HUC_12"
 ds_field = "HU_12_DS"
+pkey_field = "OBJECTID"
 zones_cleanup = False
 
-zones_file = None # will be defined by get_zones_file
+zones_file = None  # will be defined by get_zones_file
 
 watersheds = {}
-network_end_hucs = ["CLOSED BASIN","Mexico","OCEAN","MEXICO","Closed Basin","Ocean","CLOSED BAS"] # CLOSED BAS is for HUC10s. The shorter field size truncates the statement
+network_end_hucs = ["CLOSED BASIN", "Mexico", "OCEAN", "MEXICO", "Closed Basin", "Ocean", "CLOSED BAS"]  # CLOSED BAS is for HUC10s. The shorter field size truncates the statement
 
-huc_layer_cache = None # scripts will need to intialize this to {}
+huc_layer_cache = None  # scripts will need to intialize this to {}
 
 temp_folder = None
 temp_gdb = None
+
 
 class watershed():
 	def __init__(self):
 		self.HUC_12 = None
 		self.downstream = None
-		self.upstream = None # actually [], but we want to check if it's defined
+		self.upstream = None  # actually [], but we want to check if it's defined - NOT automatically populated by setup_network unless "populate_upstream" is True
 		self.has_dam = False
-		
-def setup_network(in_zones_file = None, zones_layer = None, return_copy = False):
+		self.pkey = None
 
-	global watersheds,temp_folder,temp_gdb
+		self.downstream_obj = None  # an object version of the DS huc
+
+	def to_csv(self, path=None, rows_only=False):
+		header_row = ["HUC12", "Upstream HUC12s"]
+		out_rows = [header_row, [self.HUC_12] + self.upstream]  # make the object and add the first row
+		for ws in self.upstream:
+			out_rows.append([watersheds[ws].HUC_12] + watersheds[ws].upstream)
+
+		if rows_only:
+			return out_rows
+		else:
+			if not path:
+				raise ValueError("Parameter 'path' to method 'to_csv' is required when directly outputting a CSV")
+
+			file_handle = open(path, 'wb')
+			file_writer = csv.writer(file_handle)
+			file_writer.writerows(out_rows)
+			return True
+
+
+def setup_network(in_zones_file=None, zones_layer=None, return_copy=False, pkey_as_dict_key=False, populate_upstream=False):
+
+	global watersheds, temp_folder, temp_gdb
 	
-	temp_folder = tempfile.mkdtemp(prefix = "select_hucs")
-	temp_gdb = arcpy.CreateFileGDB_management(temp_folder,"select_hucs_temp.gdb")
+	temp_folder = tempfile.mkdtemp(prefix="select_hucs")
+	temp_gdb = arcpy.CreateFileGDB_management(temp_folder, "select_hucs_temp.gdb")
 
 	log.warning("Warning: Setting system recursion limit to a high number")
-	sys.setrecursionlimit(6000) # cover a reasonably large huc network
+	sys.setrecursionlimit(6000)  # cover a reasonably large huc network
 	
 	if in_zones_file:
 		global zones_file
@@ -54,17 +78,34 @@ def setup_network(in_zones_file = None, zones_layer = None, return_copy = False)
 		log.error("No zones_file specified for module to run on - can't run without zones_file")
 		return False
 	
-	zones_layer = check_zones(zones_layer,"setup_network")
+	zones_layer = check_zones(zones_layer, "setup_network")
 		
 	# some setup
-	log.write("Setting up watershed network",True)
+	log.write("Setting up watershed network", True)
 	reader = arcpy.SearchCursor(zones_layer)
 	for record in reader:
 		t_ws = watershed()
 		t_ws.HUC_12 = record.getValue(zones_field)
 		t_ws.downstream = record.getValue(ds_field)
-		watersheds[record.HUC_12] = t_ws
-		
+		t_ws.pkey = record.getValue(pkey_field)
+
+		if pkey_as_dict_key:  # we might want to index based upon the pkey
+			watersheds[t_ws.pkey] = t_ws
+		else:  # otherwise, the default is to index by HUC12
+			watersheds[record.HUC_12] = t_ws
+
+	for wid in watersheds:  # add a reference to the downstream object into the object
+		if watersheds[wid].downstream in network_end_hucs:
+			watersheds[wid].downstream_obj = None
+			continue
+		if watersheds[wid].downstream in watersheds:  # otherwise, so long as the downstream object exists
+			watersheds[wid].downstream_obj = watersheds[watersheds[wid].downstream]
+
+	if populate_upstream:  # if we want it to automatically populate the upstream field
+		for ws in watersheds:
+			watersheds[ws].upstream = find_upstream(ws, watersheds)
+
+
 	zones_layer = cleanup_zones(zones_layer,"setup_network")
 
 	if return_copy:
@@ -72,21 +113,22 @@ def setup_network(in_zones_file = None, zones_layer = None, return_copy = False)
 	else:
 		return True
 
-def find_upstream(watershed,all_watersheds,dams_flag=False):
+
+def find_upstream(watershed, all_watersheds, dams_flag=False):
 	
 	#log.write("getting upstream watershed for %s" % watershed)
 
-	if watershed in all_watersheds and all_watersheds[watershed].upstream: # if we've already run for this watershed
-		print "already run upstream for %s" % (watershed)
+	if watershed in all_watersheds and all_watersheds[watershed].upstream:  # if we've already run for this watershed
+		log.write("already run upstream for %s" % (watershed))
 		return all_watersheds[watershed].upstream
 	
 	if dams_flag and watershed.has_dam:
-		return [] # if this is a dam and we're account for that, return nothing upstream - can't go further
+		return []  # if this is a dam and we're account for that, return nothing upstream - can't go further
 	
 	all_us = []
 	for wat in all_watersheds.keys():
 		if all_watersheds[wat].downstream == watershed:
-			us = find_upstream(wat,all_watersheds,dams_flag)
+			us = find_upstream(wat, all_watersheds, dams_flag)
 			all_us.append(wat)
 			all_us += us
 	
@@ -94,35 +136,57 @@ def find_upstream(watershed,all_watersheds,dams_flag=False):
 	log.write("returning upstream for %s" % (watershed))
 	return all_us
 
-def get_hucs(feature,zone_layer=None):
+
+def get_hucs(feature, zone_layer=None):
 	'''select huc by location and get the huc_12 id and return it'''
 	
 	log.write("Getting huc ids")
 
-	zone_layer = check_zones(zone_layer,"get_hucs")
+	zone_layer = check_zones(zone_layer, "get_hucs")
 	
-	arcpy.SelectLayerByLocation_management(zone_layer,"INTERSECT",feature,"","NEW_SELECTION")
+	arcpy.SelectLayerByLocation_management(zone_layer, "INTERSECT", feature, "", "NEW_SELECTION")
 	global number_selections
 	number_selections += 1
 	
 	hucs = read_hucs(zone_layer)
 	
-	zone_layer = cleanup_zones(zone_layer,"get_hucs")
+	zone_layer = cleanup_zones(zone_layer, "get_hucs")
 	
 	return hucs
+
 
 def read_hucs(zone_layer):
 	t_curs = arcpy.SearchCursor(zone_layer)
 	
 	hucs = []
 	for row in t_curs:
-		hucs.append(row.getValue(zones_field))
+		huc_value = row.getValue(zones_field)
+		if not huc_value:  # skip it if it's None
+			continue
+		hucs.append(huc_value)
 	
 	del row
 	del t_curs
 	return hucs
 
-def check_zones(zones_layer = None,cleanup = False):
+
+def find_outlets(zones_list):
+	if len(watersheds.keys()) == 0:
+		raise ValueError("watersheds object has not been set up. Please run setup_network first")
+
+	root_items = []
+	for zone in zones_list:
+		for other_zone in zones_list:
+			if other_zone == zone:
+				continue
+			if zone in watersheds[other_zone].upstream:  # if zone is upstream of any element here, break, skipping the else/append
+				break
+		else:
+			root_items.append(zone)  # if we didn't break (ie, if this zone isn't upstream of any others), then this will run
+	return root_items
+
+
+def check_zones(zones_layer=None, cleanup=None):
 	global zones_layer_name
 	global zones_cleanup
 	
@@ -130,18 +194,18 @@ def check_zones(zones_layer = None,cleanup = False):
 	if zones_layer:
 		return zones_layer
 	else:
-		if zones_layer_name: # if we have the global layer - this should be most common
+		if zones_layer_name:  # if we have the global layer - this should be most common
 			return zones_layer_name
 		else:
 			zl = "tzl_check_zones"
-			arcpy.MakeFeatureLayer_management(zones_file,zl)
+			arcpy.MakeFeatureLayer_management(zones_file, zl)
 			zones_layer_name = zl
-			if not zones_cleanup: # if we don't already have a saved cleanup name
-				zones_cleanup = cleanup # save the calling function's name here
+			if not zones_cleanup:  # if we don't already have a saved cleanup name
+				zones_cleanup = cleanup  # save the calling function's name here
 			
 			return zones_layer_name
 
-def cleanup_zones(zones_layer,cleanup,allow_delete=False):
+def cleanup_zones(zones_layer, cleanup, allow_delete=False):
 	global zones_cleanup
 	global zones_layer_name
 	global number_selections
@@ -163,6 +227,7 @@ def cleanup_zones(zones_layer,cleanup,allow_delete=False):
 	except:
 		pass
 
+
 def setup_huc_obj(zone_layer):
 
 	desc = arcpy.Describe(zone_layer)
@@ -177,6 +242,7 @@ def setup_huc_obj(zone_layer):
 		return False
 
 	return huc_layer_obj
+
 
 def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs",geospatial_obj = None):
 	
@@ -273,7 +339,7 @@ def grow_selection(features,zones_layer,output_name = None,copy_out=True):
 	except:
 		return None
 
-	return None # if we get here, return None
+	return None  # if we get here, return None
 	
 def get_mask(feature):
 	'''given an input feature, it finds the full potential upstream area and returns a
@@ -284,7 +350,7 @@ def get_mask(feature):
 	try:
 		zones_layer = check_zones(cleanup="get_mask")
 
-		hucs = get_hucs(feature,zones_layer) # get the initial hucs
+		hucs = get_hucs(feature, zones_layer)  # get the initial hucs
 
 		return get_upstream(hucs)
 	except:
@@ -302,35 +368,34 @@ def get_upstream(hucs, include_initial = True):
 	"""
 
 	try:
-		log.write("Getting Upstream HUCs",True)
-		hucs_to_select = list(set(hucs)) # we want a copy, might as well dedupe...
+		log.write("Getting Upstream HUCs", True)
+		hucs_to_select = list(set(hucs))  # we want a copy, might as well dedupe...
 		
 		main_huc = hucs[0]
 		zones_layer = check_zones(cleanup="get_upstream")
 
 		for huc in hucs:
 			if huc_layer_cache and huc in huc_layer_cache.keys():# huc layer cache stores the layers that are generated. Some scripts will use it when they use this function multiple times.
-				log.write("short_circuiting")
-				return huc_layer_cache[huc] # short circuit!
+				return huc_layer_cache[huc]  # short circuit!
 
-			hucs_to_select += find_upstream(huc,watersheds) # add the upstream hucs to the list
+			hucs_to_select += find_upstream(huc, watersheds)  # add the upstream hucs to the list
 
 		if include_initial:
 			hucs_to_select = list(set(hucs_to_select)) # remove duplicates - it'll speed things up a bit!
-		else: # we don't want to include the intial hucs
+		else:  # we don't want to include the intial hucs
 			hucs_to_select = list(set(hucs_to_select) - set(hucs)) # so subtract the set of initial hucs from the current set.
 
-		log.write("Selecting %s hucs" % len(hucs_to_select),True)
+		log.write("Selecting %s hucs" % len(hucs_to_select), True)
 		
 		if len(hucs_to_select) == 0: # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
 			return None
 		
 		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="upstream_hucs")
 
-		cleanup_zones(zones_layer,"get_upstream",allow_delete=True)
+		cleanup_zones(zones_layer, "get_upstream", allow_delete=True)
 
 		if huc_layer_cache:
-			huc_layer_cache[main_huc] = extent_layer # save it so we can short circuit next time!
+			huc_layer_cache[main_huc] = extent_layer  # save it so we can short circuit next time!
 
 		return extent_layer
 	except:
@@ -357,9 +422,9 @@ def get_downstream(hucs, include_initial = True):
 		if include_initial is False:
 			hucs_to_select = list(set(hucs_to_select) - set(hucs)) # subtract the initial hucs back out
 		
-		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="downstream_hucs")
+		extent_layer = select_hucs(hucs_to_select, zones_layer, base_name="downstream_hucs")
 		
-		cleanup_zones(zones_layer,"get_downstream",allow_delete=True)
+		cleanup_zones(zones_layer, "get_downstream", allow_delete=True)
 	
 		return extent_layer
 
@@ -367,26 +432,27 @@ def get_downstream(hucs, include_initial = True):
 		error_string = traceback.format_exc()
 		log.error("select downstream failed\n%s" % error_string)
 		return None
-	
-def get_downstream_path(zone,l_watersheds):
+
+
+def get_downstream_path(zone, l_watersheds):
 	"""
 		starts with a huc and uses the watershed network to find a path downstream
 	"""
 
-	current_DS = zone # set the starting huc
+	current_DS = zone  # set the starting huc
 	path_list = []
-	while (current_DS is not None): # basically, run forever. We'll manually break
+	while current_DS is not None:  # basically, run forever. We'll manually break
 		
 		try:
-			if current_DS in network_end_hucs: # we've reached the end!
+			if current_DS in network_end_hucs:  # we've reached the end!
 				break
-			if current_DS in path_list: # oh shit, we're in an infinite loop! better warn the user and break
+			if current_DS in path_list:  # oh shit, we're in an infinite loop! better warn the user and break
 				log.warning("Infinite loop in network. A downstream huc references an upstream huc. %s is part of this loop - check its 'upstream hucs'" % current_DS)
 				break
-			path_list.append(current_DS) # otherwise, add this item to the list of hucs in the path
+			path_list.append(current_DS)  # otherwise, add this item to the list of hucs in the path
 			try:
 				current_DS = l_watersheds[current_DS].downstream # then set the current item to this one's downstream item
-			except KeyError: # we have hucs that reference downstream hucs, but because we clip to CA, they are missing - we need to tolerate that
+			except KeyError:  # we have hucs that reference downstream hucs, but because we clip to CA, they are missing - we need to tolerate that
 				break
 		except:
 			log.error("Error finding downstream path. Path is likely incomplete")
@@ -394,26 +460,53 @@ def get_downstream_path(zone,l_watersheds):
 		
 	return path_list
 
-def get_upstream_from_hucs(hucs_layer,dissolve_flag = False,include_initial=True):
+
+def get_upstream_from_hucs(hucs_layer, dissolve_flag=False, include_initial=True):
 
 	hucs = read_hucs(hucs_layer)
 	
-	upstream_layer = get_upstream(hucs,include_initial)
+	upstream_layer = get_upstream(hucs, include_initial)
 
 	if dissolve_flag:
-		log.write("Dissolving",True)
-		return geospatial.fast_dissolve(upstream_layer,raise_error=False,base_name="dissolved_upstream_hucs")
+		log.write("Dissolving", True)
+		return geospatial.fast_dissolve(upstream_layer, raise_error=False, base_name="dissolved_upstream_hucs")
 	else:
 		return upstream_layer
 
 
-def get_downstream_from_hucs(hucs_layer,dissolve_flag = False,include_initial=True):
+def get_downstream_from_hucs(hucs_layer, dissolve_flag=False, include_initial=True):
 	hucs = read_hucs(hucs_layer)
 	
-	downstream_layer = get_downstream(hucs,include_initial)
+	downstream_layer = get_downstream(hucs, include_initial)
 
 	if dissolve_flag:
-		log.write("Dissolving",True)
-		return geospatial.fast_dissolve(downstream_layer,raise_error=False,base_name="dissolved_downstream_hucs")
+		log.write("Dissolving", True)
+		return geospatial.fast_dissolve(downstream_layer, raise_error=False, base_name="dissolved_downstream_hucs")
 	else:
 		return downstream_layer
+
+
+def add_downstream_objectid_field(hucs_layer, objectid_field="OBJECTID"):
+	global pkey_field
+
+	pkey_field = objectid_field
+
+	log.write("Setting up network", True)
+	hucs = setup_network(hucs_layer, return_copy=True)
+
+	log.write("Restructuring data", True)
+	ds_dict = {}
+	for wid in hucs:  # hucs is a dict
+		#print "HUC %s" % wid
+		#print "HUC %s has pkey %s" % (wid, hucs[wid].pkey)
+		if not hucs[wid].downstream_obj:  # if we don't have a downstream obj
+			ds_dict[hucs[wid].pkey] = None
+		else:
+			ds_dict[hucs[wid].pkey] = hucs[wid].downstream_obj.pkey
+
+	log.write("Adding output field", True)
+	arcpy.AddField_management(hucs_layer, "DS_OBJECTID", "LONG")
+	log.write("Writing data out", True)
+	geospatial.write_column_by_key(hucs_layer, "DS_OBJECTID", objectid_field, ds_dict)
+
+	log.write("Done", True)
