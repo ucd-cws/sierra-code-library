@@ -5,6 +5,7 @@ import tempfile
 import traceback
 import sys
 import csv
+import os
 
 import arcpy
 
@@ -184,6 +185,44 @@ def find_outlets(zones_list):
 		else:
 			root_items.append(zone)  # if we didn't break (ie, if this zone isn't upstream of any others), then this will run
 	return root_items
+
+
+def make_upstream_csv(hucs, output_csv):
+	outlet_hucs = find_outlets(hucs)  # remove any hucs that are upstream of other hucs
+
+	csv_rows = []
+	for huc in outlet_hucs:
+		csv_rows += watersheds[huc].to_csv(path=None, rows_only=True)
+
+	output_path = os.path.join(output_csv, "huc_network_output.csv")
+
+	file_handle = open(output_path, 'wb')
+	file_writer = csv.writer(file_handle)
+	file_writer.writerows(csv_rows)
+	file_handle.close()
+
+
+def make_upstream_matrix(hucs, output_csv):
+
+	csv_rows = []
+	header_row = ["HUC_12"]
+	for huc in [t_us for t_huc in hucs for t_us in watersheds[t_huc].upstream] + hucs:
+		out_dict = {"HUC_12": huc}
+		for upstream in watersheds[huc].upstream:  # add it to the dict
+			out_dict[upstream] = 1
+
+			if not upstream in header_row:  # check the header to make sure it's there
+				header_row.append(upstream)
+		csv_rows.append(out_dict)
+
+	output_path = os.path.join(output_csv, "huc_connectivity_matrix.csv")
+
+	log.write("Output path: %s" % output_path, True)
+	file_handle = open(output_path, 'wb')
+	file_writer = csv.DictWriter(file_handle, header_row)
+	file_writer.writeheader()
+	file_writer.writerows(csv_rows)
+	file_handle.close()
 
 
 def check_zones(zones_layer=None, cleanup=None):
