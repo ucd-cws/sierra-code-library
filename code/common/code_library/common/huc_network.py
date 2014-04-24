@@ -9,8 +9,11 @@ import os
 
 import arcpy
 
-from code_library.common import log #@UnresolvedImport
-from code_library.common import geospatial #@UnresolvedImport
+from code_library.common import log
+from code_library.common import geospatial
+
+short_circuit = True  # configures whether when finding upstream hucs, we should allow short circuiting for speed
+short_circuit_warning = False  # have we shown the warning yet?
 
 number_selections = 0
 number_selections_threshold = 450  # approximately aligns it with the cleanup for the FGDBs
@@ -27,6 +30,7 @@ zones_file = None  # will be defined by get_zones_file
 
 watersheds = {}
 network_end_hucs = ["CLOSED BASIN", "Mexico", "OCEAN", "MEXICO", "Closed Basin", "Ocean", "CLOSED BAS"]  # CLOSED BAS is for HUC10s. The shorter field size truncates the statement
+direct_upstream = {}  # keyed on HUC12s and each key has a list of the huc12s that feed into it - helps to speed creation of network later by not going through the whole thing many times
 
 huc_layer_cache = None  # scripts will need to intialize this to {}
 
@@ -64,8 +68,10 @@ class watershed():
 
 def setup_network(in_zones_file=None, zones_layer=None, return_copy=False, pkey_as_dict_key=False, populate_upstream=False):
 
-	global watersheds, temp_folder, temp_gdb
-	
+	global watersheds, direct_upstream, temp_folder, temp_gdb
+	watersheds = {}  # reset these in the event that we run it multiple times in a script
+	direct_upstream = {}
+
 	temp_folder = tempfile.mkdtemp(prefix="select_hucs")
 	temp_gdb = arcpy.CreateFileGDB_management(temp_folder, "select_hucs_temp.gdb")
 
@@ -95,6 +101,14 @@ def setup_network(in_zones_file=None, zones_layer=None, return_copy=False, pkey_
 		else:  # otherwise, the default is to index by HUC12
 			watersheds[record.HUC_12] = t_ws
 
+		if t_ws.downstream in direct_upstream:  # if the downstream huc is already in the network listing
+			direct_upstream[t_ws.downstream].append(t_ws.HUC_12)  # just append the current HUC12
+		else:
+			direct_upstream[t_ws.downstream] = [t_ws.HUC_12, ]  # otherwise, create a list with this item in it
+
+		if not t_ws.HUC_12 in direct_upstream:  # then check here so that everything gets added, including watersheds with nothing feeding into them
+			direct_upstream[t_ws.HUC_12] = []
+
 	for wid in watersheds:  # add a reference to the downstream object into the object
 		if watersheds[wid].downstream in network_end_hucs:
 			watersheds[wid].downstream_obj = None
@@ -115,26 +129,35 @@ def setup_network(in_zones_file=None, zones_layer=None, return_copy=False, pkey_
 		return True
 
 
-def find_upstream(watershed, all_watersheds, dams_flag=False):
+def find_upstream(l_watershed, all_watersheds, dams_flag=False, include_self=False):
 	
-	#log.write("getting upstream watershed for %s" % watershed)
+	#log.write("getting upstream watershed for %s" % l_watershed)
 
-	if watershed in all_watersheds and all_watersheds[watershed].upstream:  # if we've already run for this watershed
-		log.write("already run upstream for %s" % (watershed))
-		return all_watersheds[watershed].upstream
+	global short_circuit_warning
+
+	if short_circuit and l_watershed in all_watersheds and all_watersheds[l_watershed].upstream:  # if we've already run for this watershed
+		if include_self and not short_circuit_warning:
+			log.warning("Short circuiting is enabled, but include_self is not its default value. If you mix values for include_self in the same program, you'll get incorrect results. Set huc_network.short_circuit to False or only use a single value for include_self")
+			short_circuit_warning = True
+		log.write("already run upstream for %s" % l_watershed)
+		return all_watersheds[l_watershed].upstream
 	
-	if dams_flag and watershed.has_dam:
+	if dams_flag and l_watershed.has_dam:
 		return []  # if this is a dam and we're account for that, return nothing upstream - can't go further
+
+	if include_self:
+		all_us = [l_watershed, ]
+	else:
+		all_us = []
+
+	for watershed_string in direct_upstream[l_watershed]:  # look at all the hucs directly upstream of this
+		us = find_upstream(watershed_string, all_watersheds, dams_flag, include_self=include_self)  # find what's upstream of them
+		if not include_self:  # if it's not supposed to add itself, then add the upstream watershed here. If it's going to include itself, then that will get added when find_upstream is run for it, so we don't need to do this
+			all_us.append(watershed_string)
+		all_us += us  # then add what's upstream of them
 	
-	all_us = []
-	for wat in all_watersheds.keys():
-		if all_watersheds[wat].downstream == watershed:
-			us = find_upstream(wat, all_watersheds, dams_flag)
-			all_us.append(wat)
-			all_us += us
-	
-	all_watersheds[watershed].upstream = all_us
-	log.write("returning upstream for %s" % (watershed))
+	all_watersheds[l_watershed].upstream = all_us
+	#log.write("returning upstream for %s" % (l_watershed))
 	return all_us
 
 
@@ -202,11 +225,17 @@ def make_upstream_csv(hucs, output_csv):
 	file_handle.close()
 
 
-def make_upstream_matrix(hucs, output_csv):
+def make_upstream_matrix(hucs, output_csv, include_self_flag=False):
 
 	csv_rows = []
 	header_row = ["HUC_12"]
-	for huc in [t_us for t_huc in hucs for t_us in watersheds[t_huc].upstream] + hucs:
+
+	if include_self_flag:  # if the option to include_self earlier was used, then don't add the current hucs back in here
+		list_comp = [t_us for t_huc in hucs for t_us in watersheds[t_huc].upstream]
+	else:
+		list_comp = [t_us for t_huc in hucs for t_us in watersheds[t_huc].upstream] + hucs
+
+	for huc in list_comp:  # list comprehension merges all of the hucs in the upstream lists for every huc in the initial list with the hucs themselves so that we get one master list of all hucs that need to be in the matrix
 		out_dict = {"HUC_12": huc}
 		for upstream in watersheds[huc].upstream:  # add it to the dict
 			out_dict[upstream] = 1
@@ -396,7 +425,7 @@ def get_mask(feature):
 		log.error("analysis mask failed")
 		return None
 
-def get_upstream(hucs, include_initial = True):
+def get_upstream(hucs, include_initial=True, include_self=False):
 	"""
 	given a list of HUCs as a starting point, selects all upstream HUCs and returns them as a feature layer
 
@@ -414,22 +443,22 @@ def get_upstream(hucs, include_initial = True):
 		zones_layer = check_zones(cleanup="get_upstream")
 
 		for huc in hucs:
-			if huc_layer_cache and huc in huc_layer_cache.keys():# huc layer cache stores the layers that are generated. Some scripts will use it when they use this function multiple times.
+			if huc_layer_cache and huc in huc_layer_cache.keys():  # huc layer cache stores the layers that are generated. Some scripts will use it when they use this function multiple times.
 				return huc_layer_cache[huc]  # short circuit!
 
-			hucs_to_select += find_upstream(huc, watersheds)  # add the upstream hucs to the list
+			hucs_to_select += find_upstream(huc, watersheds, include_self=include_self)  # add the upstream hucs to the list
 
-		if include_initial:
-			hucs_to_select = list(set(hucs_to_select)) # remove duplicates - it'll speed things up a bit!
-		else:  # we don't want to include the intial hucs
-			hucs_to_select = list(set(hucs_to_select) - set(hucs)) # so subtract the set of initial hucs from the current set.
+		if include_initial or include_self:
+			hucs_to_select = list(set(hucs_to_select))  # remove duplicates - it'll speed things up a bit!
+		else:  # we don't want to include the initial hucs
+			hucs_to_select = list(set(hucs_to_select) - set(hucs))  # so subtract the set of initial hucs from the current set.
 
 		log.write("Selecting %s hucs" % len(hucs_to_select), True)
 		
-		if len(hucs_to_select) == 0: # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
+		if len(hucs_to_select) == 0:  # it'll return the whole layer if we don't have anything, so just have it return None and we'll use the default masks
 			return None
 		
-		extent_layer = select_hucs(hucs_to_select,zones_layer,base_name="upstream_hucs")
+		extent_layer = select_hucs(hucs_to_select, zones_layer, base_name="upstream_hucs")
 
 		cleanup_zones(zones_layer, "get_upstream", allow_delete=True)
 
@@ -441,6 +470,7 @@ def get_upstream(hucs, include_initial = True):
 		error_string = traceback.format_exc()
 		log.error("select upstream failed\n%s" % error_string)
 		return None
+
 
 def get_downstream(hucs, include_initial = True):
 	
@@ -500,11 +530,11 @@ def get_downstream_path(zone, l_watersheds):
 	return path_list
 
 
-def get_upstream_from_hucs(hucs_layer, dissolve_flag=False, include_initial=True):
+def get_upstream_from_hucs(hucs_layer, dissolve_flag=False, include_initial=True, upstream_of_self=False):
 
 	hucs = read_hucs(hucs_layer)
 	
-	upstream_layer = get_upstream(hucs, include_initial)
+	upstream_layer = get_upstream(hucs, include_initial, include_self=upstream_of_self)
 
 	if dissolve_flag:
 		log.write("Dissolving", True)

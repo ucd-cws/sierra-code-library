@@ -24,6 +24,7 @@ output_matrix = arcpy.GetParameterAsText(5)
 in_zones_file = arcpy.GetParameterAsText(6)
 in_huc_field = arcpy.GetParameterAsText(7)
 in_ds_field = arcpy.GetParameterAsText(8)
+include_as_upstream_of_self = arcpy.GetParameterAsText(9)
 # other parameters to add
 
 if dissolve_output is True or dissolve_output is False:
@@ -77,7 +78,7 @@ if __name__ == "__main__":
 
 	try:
 		if direction == "Upstream" or direction == "Both":
-			upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream, dissolve_output, include_selected)
+			upstream_layer = network.get_upstream_from_hucs(huc_to_find_upstream, dissolve_output, include_selected, upstream_of_self=include_as_upstream_of_self)
 
 			if output_csv:
 				try:
@@ -91,12 +92,12 @@ if __name__ == "__main__":
 				try:
 					log.write("Writing out connectivity matrix file", True)
 					hucs = network.read_hucs(huc_to_find_upstream)
-					network.make_upstream_matrix(hucs, output_matrix)
+					network.make_upstream_matrix(hucs, output_matrix, include_self_flag=include_as_upstream_of_self)
 				except:
 					log.error("Failed to write out CSV file - %s" % traceback.format_exc())
 
 			if upstream_layer:
-				arcpy.SetParameter(9, upstream_layer)
+				arcpy.SetParameter(10, upstream_layer)
 			else:
 				log.error("No Upstream Layer to Return")
 
@@ -104,7 +105,7 @@ if __name__ == "__main__":
 			downstream_layer = network.get_downstream_from_hucs(huc_to_find_upstream, dissolve_output, include_selected)
 
 			if downstream_layer:
-				arcpy.SetParameter(10, downstream_layer)
+				arcpy.SetParameter(11, downstream_layer)
 			else:
 				log.error("No Downstream Layer to Return")
 	except:
