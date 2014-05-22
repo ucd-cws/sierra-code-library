@@ -30,8 +30,8 @@ temp_folder = None
 temp_gdb = None
 raster_count = 0
 
-delims_open = {'mdb':"[",'gdb':"\"",'shp':"\"",'in_memory':""} # a dictionary of field delimiters for use in sql statements. We don't always know that the huc layer will be stored
-delims_close = {'mdb':"]",'gdb':"\"",'shp':"\"",'in_memory':""} # in one type of field or another. These two are just extension based lookups
+delims_open = {'mdb': "[", "sqlite": "\"", 'gdb': "\"", 'shp': "\"", 'in_memory': ""}  # a dictionary of field delimiters for use in sql statements. We don't always know that the huc layer will be stored
+delims_close = {'mdb': "]", "sqlite": "\"", 'gdb': "\"", 'shp': "\"", 'in_memory': ""}  # in one type of field or another. These two are just extension based lookups
 
 
 class geospatial_object:
@@ -93,7 +93,7 @@ class geospatial_object:
 		if features is None: # use the instance's main file if the arg is none - it's not the default because eclipse was complaining about using "self" as an arg - may be possible, but haven't tested.
 			features = self.main_file
 		
-		log.write("Splitting features",True)
+		log.write("Splitting features", True)
 		
 		features_name = os.path.splitext(os.path.split(features)[1])[0]
 		
@@ -156,6 +156,7 @@ class geospatial_object:
 		
 		return split_features
 
+
 class data_file(geospatial_object):
 	def __init__(self,filename = None):
 		self.data_location = filename
@@ -182,10 +183,13 @@ class data_file(geospatial_object):
 		elif re.match(" shp",featureclass) is not None or re.search("\.shp",featureclass) is not None:
 			self.delim_open = delims_open['shp']
 			self.delim_close = delims_close['shp']
+		elif re.match(" sqlite", featureclass) is not None or re.search("\.db", featureclass) is not None or re.search("\.aqlite", featureclass) is not None:
+			self.delim_open = delims_open['sqlite']
+			self.delim_close = delims_close['sqlite']
 		elif re.match(" in_memory",featureclass) is not None or re.search("in_memory",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
 			self.delim_open = delims_open['in_memory']
 			self.delim_close = delims_close['in_memory']
-		elif re.match(" sde",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
+		elif re.match(" sde",featureclass) is not None:  # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.
 			self.delim_open = ""
 			self.delim_close = ""
 		else:
