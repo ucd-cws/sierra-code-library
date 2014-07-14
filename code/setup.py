@@ -1,7 +1,7 @@
 from py27distutils.core import setup
 
 setup(name="CWS Toolbox",
-	version="1.4.6",
+	version="1.5_beta",
 	description="The UCD CWS Code Library and ArcGIS toolbox",
 	scripts=['install_code_library.py'],
 	packages=['cws_toolbox',

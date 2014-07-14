@@ -194,10 +194,12 @@ class data_file(geospatial_object):
 		
 		return True
 
+
 def generate_fast_filename(name_base="xt", return_full=True, scratch=True):
 	'''uses the in_memory workspace and calls generate_gdb_filename with that as the gdb'''
 	
 	return generate_gdb_filename(name_base, return_full, "in_memory", scratch)
+
 
 def generate_gdb_filename(name_base="xt", return_full=True, gdb=None, scratch=False):
 	'''returns the filename and the gdb separately for use in some tools'''
@@ -223,17 +225,21 @@ def generate_gdb_filename(name_base="xt", return_full=True, gdb=None, scratch=Fa
 		return os.path.split(filename)[1], temp_gdb
 
 
-def make_temp():
+def make_temp(override=False):
+	"""
+		override enables us to say just "give me a new temp gdb and don't try to manage it"
+	"""
 
 	global temp_gdb
 	global temp_folder
 	global raster_count
-	
-	if temp_gdb and raster_count < 100:
-		raster_count += 1
-		return temp_folder, temp_gdb
-	else:
-		raster_count = 0
+
+	if not override:
+		if temp_gdb and raster_count < 100:
+			raster_count += 1
+			return temp_folder, temp_gdb
+		else:
+			raster_count = 0
 	
 	try:
 		temp_folder = tempfile.mkdtemp()
@@ -298,10 +304,11 @@ def get_spatial_reference(dataset = None):
 	
 	return sr
 
-def fast_dissolve(features,raise_error = True,base_name="dissolved"):
+
+def fast_dissolve(features, raise_error=True, base_name="dissolved"):
 	out_name = generate_gdb_filename(base_name)
 	try:
-		arcpy.Dissolve_management(features,out_name)
+		arcpy.Dissolve_management(features, out_name)
 	except:
 		if raise_error is False:
 			log.warning("Couldn't dissolve. Returning non-dissolved layer")
@@ -309,3 +316,25 @@ def fast_dissolve(features,raise_error = True,base_name="dissolved"):
 		else:
 			raise
 	return out_name
+
+
+def write_column_by_key(layer, layer_field, layer_key, results_dict):
+	"""
+		Writes a column to a layer (doesn't create the field) using a key in the layer to match against a results dictionary-
+
+	:param str layer: The layer to modify
+	:param str layer_field: The field in the layer that should be changed
+	:param str layer_key: The key field in the layer that will be used for lookups in the results
+	:param dict results_dict: The dictionary that the key field will be used to look up results in
+	"""
+
+	# for every row
+	arc_curs = arcpy.UpdateCursor(layer)
+	for row in arc_curs:
+		cur_key = row.getValue(layer_key)
+
+		if not cur_key in results_dict:  # skip it if it's not there
+			continue
+
+		row.setValue(layer_field, results_dict[cur_key])
+		arc_curs.updateRow(row)

@@ -1,3 +1,8 @@
+**** 1.5 ****
+Cleanups in the installer code to be more compatible with 10.1 and remove hard dependencies
+addition of sunrise sunset tool in the code folder
+addition of CSV outputs for the HUC12 upstream/downstream tool and some unit tests for the huc network code
+
 **** 1.4.6 ****
 Imaging tools
 Migration of some percent overlap and centroid distance code to code library
