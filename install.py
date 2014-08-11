@@ -19,8 +19,7 @@ if require_32bit and architecture != "32bit":
 	raw_input("launched version under 32 bit python. Closing original version. Hit any key to exit.")
 	sys.exit()
 
-
-curdir = os.getcwd()
+curdir = current_directory
 
 print "Registering location in system registry at HKEY_CURRENT_USER\Software\CWS\code_library\location"
 print "Registering location as %s" % curdir
@@ -36,7 +35,7 @@ except:
 	print "FAILED to register"
 	
 try:
-	locations = ("common", "cws_toolbox")
+	locations = ("releases\\common", "releases\\cws_toolbox")
 	print "Writing location to Python path"
 	pth_dir = get_python_lib()
 	pth_file = os.path.join(pth_dir, "code_library.pth")

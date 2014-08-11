@@ -19,9 +19,7 @@ if require_32bit and architecture != "32bit":
 	raw_input("launched version under 32 bit python. Closing original version. Hit any key to exit.")
 	sys.exit()
 
-
-
-curdir = os.getcwd()
+curdir = current_directory
 
 print "Registering location in system registry at HKEY_CURRENT_USER\Software\CWS\code_library\location"
 print "Registering location as %s" % curdir
