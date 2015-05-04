@@ -23,13 +23,13 @@ if require_32bit and architecture != "32bit":
 curdir = os.getcwd()
 
 print "Registering location in system registry at HKEY_CURRENT_USER\Software\CWS\code_library\location"
-print "Registering location as %s" % curdir
+print "Registering location as %s" % current_directory
 try:
 	registry = ConnectRegistry("", HKEY_CURRENT_USER)
 	Software = OpenKey(registry, "Software")
 	CWS = CreateKey(Software, "CWS")
 	code_library = CreateKey(CWS, "code_library")
-	SetValue(code_library, "location", REG_SZ, curdir)
+	SetValue(code_library, "location", REG_SZ, current_directory)
 	FlushKey(code_library)
 	print "registered!\n"
 except:
@@ -42,8 +42,8 @@ try:
 	pth_file = os.path.join(pth_dir, "code_library.pth")
 	open_file = open(pth_file, 'w')
 	for folder in locations:
-		print "Writing %s" % os.path.join(curdir, folder)
-		open_file.write(os.path.join(curdir, folder) + "\n")
+		print "Writing %s" % os.path.join(current_directory, folder)
+		open_file.write(os.path.join(current_directory, folder) + "\n")
 	open_file.close()
 	print "Location written\n"
 except:

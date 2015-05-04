@@ -160,6 +160,8 @@ class geospatial_object:
 class data_file(geospatial_object):
 	def __init__(self,filename = None):
 		self.data_location = filename
+		self.delim_open = None
+		self.delim_close = None
 		
 	def set_delimiters(self):
 
@@ -183,7 +185,7 @@ class data_file(geospatial_object):
 		elif re.match(" shp",featureclass) is not None or re.search("\.shp",featureclass) is not None:
 			self.delim_open = delims_open['shp']
 			self.delim_close = delims_close['shp']
-		elif re.match(" sqlite", featureclass) is not None or re.search("\.db", featureclass) is not None or re.search("\.aqlite", featureclass) is not None:
+		elif re.match(" sqlite", featureclass) is not None or re.search("\.db", featureclass) is not None or re.search("\.sqlite", featureclass) is not None:
 			self.delim_open = delims_open['sqlite']
 			self.delim_close = delims_close['sqlite']
 		elif re.match(" in_memory",featureclass) is not None or re.search("in_memory",featureclass) is not None: # dbmses use no delimeters. This is just a guess at how to detect if an fc is in one since I don't have access yet.

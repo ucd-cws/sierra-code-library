@@ -80,8 +80,8 @@ class plot_series:
 			first = self.data.size - size
 
 
-		interesting_slice = data[first:last]
-		return interesting_slice[self.field].mean()
+		interesting_slice = self.data[first:last]
+		return interesting_slice.mean()
 
 	def transform_data_to_moving_average(self):
 

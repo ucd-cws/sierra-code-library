@@ -18,7 +18,7 @@ short_circuit_warning = False  # have we shown the warning yet?
 number_selections = 0
 number_selections_threshold = 450  # approximately aligns it with the cleanup for the FGDBs
 
-config_selection_chunk_size = 25  # how many hucs should we select in each chunk? Higher is faster, but may run up against arc's limits
+config_selection_chunk_size = 200  # how many hucs should we select in each chunk? Higher is faster, but may run up against arc's limits
 
 zones_layer_name = None
 zones_field = "HUC_12"
@@ -40,7 +40,7 @@ temp_gdb = None
 
 class watershed():
 	def __init__(self):
-		self.HUC_12 = None
+		self.zone_id = None
 		self.downstream = None
 		self.upstream = None  # actually [], but we want to check if it's defined - NOT automatically populated by setup_network unless "populate_upstream" is True
 		self.has_dam = False
@@ -50,9 +50,9 @@ class watershed():
 
 	def to_csv(self, path=None, rows_only=False):
 		header_row = ["HUC12", "Upstream HUC12s"]
-		out_rows = [header_row, [self.HUC_12] + self.upstream]  # make the object and add the first row
+		out_rows = [header_row, [self.zone_id] + self.upstream]  # make the object and add the first row
 		for ws in self.upstream:
-			out_rows.append([watersheds[ws].HUC_12] + watersheds[ws].upstream)
+			out_rows.append([watersheds[ws].zone_id] + watersheds[ws].upstream)
 
 		if rows_only:
 			return out_rows
@@ -92,22 +92,22 @@ def setup_network(in_zones_file=None, zones_layer=None, return_copy=False, pkey_
 	reader = arcpy.SearchCursor(zones_layer)
 	for record in reader:
 		t_ws = watershed()
-		t_ws.HUC_12 = record.getValue(zones_field)
+		t_ws.zone_id = record.getValue(zones_field)
 		t_ws.downstream = record.getValue(ds_field)
 		t_ws.pkey = record.getValue(pkey_field)
 
 		if pkey_as_dict_key:  # we might want to index based upon the pkey
 			watersheds[t_ws.pkey] = t_ws
 		else:  # otherwise, the default is to index by HUC12
-			watersheds[record.HUC_12] = t_ws
+			watersheds[record.getValue(zones_field)] = t_ws
 
 		if t_ws.downstream in direct_upstream:  # if the downstream huc is already in the network listing
-			direct_upstream[t_ws.downstream].append(t_ws.HUC_12)  # just append the current HUC12
+			direct_upstream[t_ws.downstream].append(t_ws.zone_id)  # just append the current HUC12
 		else:
-			direct_upstream[t_ws.downstream] = [t_ws.HUC_12, ]  # otherwise, create a list with this item in it
+			direct_upstream[t_ws.downstream] = [t_ws.zone_id, ]  # otherwise, create a list with this item in it
 
-		if not t_ws.HUC_12 in direct_upstream:  # then check here so that everything gets added, including watersheds with nothing feeding into them
-			direct_upstream[t_ws.HUC_12] = []
+		if not t_ws.zone_id in direct_upstream:  # then check here so that everything gets added, including watersheds with nothing feeding into them
+			direct_upstream[t_ws.zone_id] = []
 
 	for wid in watersheds:  # add a reference to the downstream object into the object
 		if watersheds[wid].downstream in network_end_hucs:
@@ -225,10 +225,10 @@ def make_upstream_csv(hucs, output_csv):
 	file_handle.close()
 
 
-def make_upstream_matrix(hucs, output_csv, include_self_flag=False):
+def make_upstream_matrix(hucs, output_csv, include_self_flag=False, zones_name="HUC_12"):
 
 	csv_rows = []
-	header_row = ["HUC_12"]
+	header_row = [zones_name]
 
 	if include_self_flag:  # if the option to include_self earlier was used, then don't add the current hucs back in here
 		list_comp = [t_us for t_huc in hucs for t_us in watersheds[t_huc].upstream]
@@ -236,7 +236,7 @@ def make_upstream_matrix(hucs, output_csv, include_self_flag=False):
 		list_comp = [t_us for t_huc in hucs for t_us in watersheds[t_huc].upstream] + hucs
 
 	for huc in list_comp:  # list comprehension merges all of the hucs in the upstream lists for every huc in the initial list with the hucs themselves so that we get one master list of all hucs that need to be in the matrix
-		out_dict = {"HUC_12": huc}
+		out_dict = {zones_name: huc}
 		for upstream in watersheds[huc].upstream:  # add it to the dict
 			out_dict[upstream] = 1
 
@@ -312,7 +312,7 @@ def setup_huc_obj(zone_layer):
 	return huc_layer_obj
 
 
-def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs",geospatial_obj = None):
+def select_hucs(huc_list, zone_layer=None, copy_out=True, base_name="hucs", geospatial_obj = None):
 	
 	try:
 		log.write("Selecting features")
@@ -325,14 +325,13 @@ def select_hucs(huc_list,zone_layer=None,copy_out = True, base_name = "hucs",geo
 				return False
 		else:
 			huc_layer_obj = geospatial_obj
-			log.write("using passed in geospatial_obj",level="debug")
+			log.write("using passed in geospatial_obj", level="debug")
 
-		#log.write("Selecting HUCs")
-		selection_type = "NEW_SELECTION" # start a new selection, then add to
+		selection_type = "NEW_SELECTION"  # start a new selection, then add to
 		try:
-			arcpy.SelectLayerByAttribute_management(zone_layer,"CLEAR_SELECTION") # we need to do this because if we don't then two layers in a row with the same number of records will result in the second (or third, etc) being skipped because the following line will return the selected number
+			arcpy.SelectLayerByAttribute_management(zone_layer, "CLEAR_SELECTION") # we need to do this because if we don't then two layers in a row with the same number of records will result in the second (or third, etc) being skipped because the following line will return the selected number
 			log.write("Selecting %s zones" % len(huc_list))
-			zone_expression = "" # the where clause - we want to initialize it to blank
+			zone_expression = ""  # the where clause - we want to initialize it to blank
 			for index in range(len(huc_list)): # we have to do this in a loop because building one query to make Arc do it for us produces an error
 				zone_expression = zone_expression + "%s%s%s = '%s' OR " % (huc_layer_obj.delim_open,zones_field,huc_layer_obj.delim_close,huc_list[index]) # brackets are required by Arc for Personal Geodatabases and quotes for FGDBs (that's us!)
 				if index % config_selection_chunk_size == 0 or index == len(huc_list)-1: # Chunking: every nth HUC, we run the selection, OR when we've reached the last one. we're trying to chunk the expression. Arc won't take a big long one, but selecting 1 by 1 is slow

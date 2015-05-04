@@ -7,8 +7,6 @@ __author__ = "nickrsan"
 
 import traceback
 import sys
-import os
-import csv
 
 import arcpy
 
@@ -54,7 +52,10 @@ def get_zones_file(input_file):
 
 def handle_params(l_hucs_to_find_upstream, l_in_zones_file, l_in_huc_field, l_in_ds_field):
 	if l_in_huc_field:
+		arcpy.AddMessage("changing field")
 		network.zones_field = l_in_huc_field
+	else:
+		arcpy.AddMessage("not changing field")
 	if l_in_ds_field:
 		network.ds_field = l_in_ds_field
 
