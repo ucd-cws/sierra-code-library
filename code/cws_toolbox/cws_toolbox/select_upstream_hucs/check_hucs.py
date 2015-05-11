@@ -31,13 +31,31 @@ if not key_field:
 	log.write("Setting key field to %s" % huc_network.zones_field)
 	key_field = huc_network.zones_field
 
+huc_network.zones_field = key_field
+
 ds_field = arcpy.GetParameterAsText(5)
 if not ds_field:
 	log.write("Setting DS field to %s" % huc_network.ds_field)
 	ds_field = huc_network.ds_field
 
+huc_network.ds_field = ds_field
+
 hu10_key = "HUC_10"  # basic definitions - not params
 hu10_ds_key = "HU_10_DS"
+
+run_hierarchy_check = arcpy.GetParameterAsText(6)
+
+hierarchy_key_field = arcpy.GetParameterAsText(7)
+if not hierarchy_key_field:
+	log.write("Setting Hierarchy Key field to %s" % hu10_key)
+	hierarchy_key_field = hu10_key
+
+hierarchy_ds_field = arcpy.GetParameterAsText(8)
+if not hierarchy_ds_field:
+	log.write("Setting Hierarchy DS field to %s" % hu10_ds_key)
+	hierarchy_ds_field = hu10_ds_key
+
+
 
 ### Some error checking
 log.write("checking existence of input", level="debug")
@@ -47,7 +65,7 @@ if not arcpy.Exists(layer):
 
 ### Some definitions
 huc12s_index = []
-huc10s_index = []
+hierarchy_items_index = []
 marked_as_bad = []
 watersheds = {}
 issues_index = {}
@@ -57,11 +75,11 @@ reload_interval = 100  # specifies how often to reload the layer of zones as a f
 
 
 class huc_issue:
-	def __init__(self, huc_12=None, reason=None, issue_notes=None, huc_10=None, ds=None, ds10=None):
+	def __init__(self, huc_12=None, reason=None, issue_notes=None, hierarchy_key=None, ds=None, hierarchy_ds=None):
 		self.huc_12 = huc_12
 		self.hu_12_ds = ds
-		self.huc_10 = huc_10
-		self.hu_10_ds = ds10
+		self.hierarchy_key = hierarchy_key
+		self.hierarchy_ds = hierarchy_ds
 		self.reason = reason
 		self.issue_notes = issue_notes
 
@@ -103,35 +121,35 @@ def check_huc_from_row(row):
 		marked_as_bad.append(issue)
 		issues_index[huc_12_id].append(issue)
 
-	if row.getValue(hu10_ds_key) not in huc10s_index and row.getValue(hu10_ds_key) not in huc_network.network_end_hucs:
-		message = "Downstream HUC_10 does not exist in this dataset"
-		reason = "10_ds_dne"
+	if run_hierarchy_check and (row.getValue(hierarchy_ds_field) not in hierarchy_items_index and row.getValue(hierarchy_ds_field) not in huc_network.network_end_hucs):
+		message = "Downstream Hierarchy Item (%s) does not exist in this dataset" % (hierarchy_key_field)
+		reason = "hierarchy_ds_dne"
 
-		issue = huc_issue(huc_12_id, reason, message, huc_10=row.getValue(hu10_key))
+		issue = huc_issue(huc_12_id, reason, message, hierarchy_key=row.getValue(hierarchy_key_field))
 		marked_as_bad.append(issue)
 		issues_index[huc_12_id].append(issue)
 
 	try:
-		if row.getValue(hu10_key) not in huc_12_ds and row.getValue(hu10_ds_key) not in huc_12_ds:
+		if run_hierarchy_check and (row.getValue(hierarchy_key_field) not in huc_12_ds and row.getValue(hierarchy_ds_field) not in huc_12_ds):
 			# if the downstream HUC12 isn't within the current HUC10 or the downstream HUC10
 			message = "Downstream HUC_12 is not within the current HUC_10 or the downstream HUC_10 - possible problem with any of those attributes"
 			reason = "ds_not_within"
 
-			issue = huc_issue(huc_12_id, reason, message, huc_10=row.getValue(hu10_key))
+			issue = huc_issue(huc_12_id, reason, message, hierarchy_key=row.getValue(hierarchy_key_field))
 			marked_as_bad.append(issue)
 			issues_index[huc_12_id].append(issue)
 	except:
-		log.error("Had trouble checking for HUC10 consistency. Values follow")
+		log.error("Had trouble checking for Hierarchy consistency. Values follow")
 		try:
-			log.error("HUC10=%s" % row.getValue(hu10_key))
+			log.error("%s=%s" % (hierarchy_key_field, row.getValue(hierarchy_ds_field)))
 		except:
 			pass
 		try:
-			log.error("HU_12_DS=%s" % huc_12_ds)
+			log.error("%s=%s" % (ds_field, huc_12_ds))
 		except:
 			pass
 		try:
-			log.error("HU_10_DS=%s" % row.getValue(hu10_ds_key))
+			log.error("%s=%s" % (hierarchy_ds_field, row.getValue(hierarchy_ds_field)))
 		except:
 			pass
 		raise
@@ -213,6 +231,12 @@ def check_boundary_from_id(zone_id, feature_layer, zone_network, key_field, geos
 	"""
 
 	if not zone_id or not feature_layer or not zone_network:
+		if not zone_id:
+			log.error("no zone_id")
+		if not feature_layer:
+			log.error("no feature_layer")
+		if not zone_network:
+			log.error("no zone_network")
 		log.error("Missing parameters to check_boundary_from_id")
 		raise ValueError("Missing parameters to check_boundary_from_id")
 
@@ -262,7 +286,7 @@ def check_boundaries(feature_class, key_list, zone_network, key_field):
 
 	i = 1
 
-	feature_layer = reset_feature_layer(feature_class, "f_layer") # get it to start with
+	feature_layer = reset_feature_layer(feature_class, "f_layer")  # get it to start with
 
 	for feature_id in key_list:
 		if (i % 10) == 0:
@@ -272,6 +296,9 @@ def check_boundaries(feature_class, key_list, zone_network, key_field):
 			feature_layer = reset_feature_layer(feature_class, "f_layer")
 
 		i += 1
+
+		if feature_id is None or feature_id == "":
+			continue
 
 		try:
 			ds_ok = check_boundary_from_id(feature_id, feature_layer, zone_network, key_field, geospatial_obj)
@@ -347,7 +374,7 @@ if __name__ == "__main__":
 	huc_curs = arcpy.SearchCursor(temp_features)
 	for row in huc_curs:
 		huc12s_index.append(row.getValue(key_field))
-		huc10s_index.append(row.getValue(hu10_key))
+		hierarchy_items_index.append(row.getValue(hierarchy_key_field))
 		issues_index[row.getValue(key_field)] = []  # set this up for every huc
 	del huc_curs
 
@@ -374,7 +401,7 @@ if __name__ == "__main__":
 		full_out_path = temp_features # redirect the output path because we're about to use it to create the feature layer
 
 	log.write("\nLayer checked. Note that caught errors MAY NOT encompass all errors on the downstream attributes for this layer, but caught errors should find genuine issues. You should run this tool again after making any corrections as previously unreported issues may then be caught", True)
-	arcpy.SetParameter(6, full_out_path)
+	arcpy.SetParameter(9, full_out_path)
 
 
 

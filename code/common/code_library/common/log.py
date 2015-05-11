@@ -23,14 +23,15 @@ export_html = True
 html_file = None
 
 is_arc_script = False
+print_only = False
 
-def init(arc_script = False, html = True):
+def init(arc_script = False, html = False):
 	init_log(arc_script,html)
 
-def initialize(arc_script = False, html = True):
+def initialize(arc_script = False, html = False):
 	init_log(arc_script,html)
 
-def init_log(arc_script = False, html = True):
+def init_log(arc_script = False, html = False):
 
 	global write
 	global error
@@ -41,22 +42,22 @@ def init_log(arc_script = False, html = True):
 		global is_arc_script
 		is_arc_script = True
 
-	log_folder = os.getcwd() #set a default
-	if not os.path.exists(log_file): # try creating it in the default
+	log_folder = os.getcwd()  # set a default
+	if not os.path.exists(log_file):  # try creating it in the default
 		try:
-			log_create(log_file,arc_script)
+			log_create(log_file, arc_script)
 		except:
-			pass # it's ok - the next step will catch it
+			pass  # it's ok - the next step will catch it
 		log_folder = os.path.split(log_file)[0]
-	if not os.path.exists(log_file): # verify that it exists
+	if not os.path.exists(log_file):  # verify that it exists
 		log_folder = tempfile.mkdtemp(prefix="code_lib_log")
 		global log_file
-		log_file = os.path.join(log_folder,"log_db.sqlite3")
+		log_file = os.path.join(log_folder, "log_db.sqlite3")
 		try:
-			log_create(log_file,arc_script)
+			log_create(log_file, arc_script)
 		except:
-			pass # again, next step will catch it
-	if not os.path.exists(log_file): # verify (again) that it exists
+			pass  # again, next step will catch it
+	if not os.path.exists(log_file):  # verify (again) that it exists
 		if arc_script:
 			arcpy.AddError("Could not create log file in current or temporary dirs. Can't log. All log messages will be printed and not saved")
 		else:
@@ -83,10 +84,10 @@ def init_log(arc_script = False, html = True):
 	row = log_cursor.fetchone()
 	run_id = row[0]
 
-	global export_html, html_file # set the flag for exporting HTML
-	export_html = html
-	if export_html:
-		html_file = html_setup(log_folder)
+	#global export_html, html_file  # set the flag for exporting HTML
+	#export_html = html
+	#if export_html:
+	#	html_file = html_setup(log_folder)
 
 	write("Log initialized - software loading\nLog DB is located at %s" % log_file)
 
@@ -109,9 +110,10 @@ def _print_only(log_string = None, screen = True, level = "log"):
 	else:
 		print log_string
 
-def write(log_string = None,screen = False, level="log"): # levels are "log", "warning", and "error"
-	
-	if not log_connection: # if we didn't init manually, create it
+
+def write(log_string=None, screen=False, level="log"):  # levels are "log", "warning", and "error"
+
+	if not log_connection:  # if we didn't init manually, create it
 		init_log()
 		
 	global log_cursor, run_id
@@ -126,15 +128,11 @@ def write(log_string = None,screen = False, level="log"): # levels are "log", "w
 			print log_string
 	try:
 		log_cursor.execute('''insert into log (message,message_date,message_level,run_id) values (?,datetime('now'),?,?)''',(log_string,level,run_id))
-		if export_html:
-			l_date = datetime.datetime.now()
-			l_date_string = "%s-%02d-%02d %02d:%02d:%02d" % (l_date.year,l_date.month,l_date.day,l_date.hour,l_date.minute,l_date.second)
-			html_file.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (l_date_string,level,log_string,run_id))
 	except:
-		if is_arc_script:
-			arcpy.AddMessage("Couldn't insert record into log! Printing...")
-		else:
-			print "Couldn't insert record into log! Printing..."
+		#if is_arc_script:
+		#	#arcpy.AddMessage("Couldn't insert record into log! Printing...")
+		#else:
+		#	#print "Couldn't insert record into log! Printing..."
 		if screen is not True and (level != "warning" or print_warnings is False) and level != "error": # in those cases, we already printed it...
 			if is_arc_script:
 				arcpy.AddMessage(log_string)
@@ -160,11 +158,12 @@ def log_create(create_log_file,arcpy_based):
 	log_cursor.execute('''create table runs (id INTEGER PRIMARY KEY AUTOINCREMENT, run_date TEXT)''')
 	log_cursor.close()
 	log_connect.close()
-	
+
 	if arcpy_based:
 		arcpy.AddMessage("Created log file at %s" % create_log_file)
 	else:
 		print "Created log file at %s" % create_log_file
+
 
 def html_setup(log_folder):
 	filename = os.path.join(log_folder,"log_html.htm")
