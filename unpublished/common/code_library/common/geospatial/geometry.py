@@ -230,7 +230,7 @@ def simple_centroid_distance(feature1, feature2, spatial_reference, dissolve=Fal
 	return out_attributes
 	
 
-def write_features_from_list(data=None, data_type="POINT", filename=None, spatial_reference=None):
+def write_features_from_list(data=None, data_type="POINT", filename=None, spatial_reference=None, write_ids=False):
 	'''takes an iterable of feature OBJECTS and writes them out to a new feature class, returning the filename'''	
 	
 	if not spatial_reference:
@@ -258,7 +258,13 @@ def write_features_from_list(data=None, data_type="POINT", filename=None, spatia
 	path_parts = os.path.split(filename)
 	log.write(str(path_parts))
 	arcpy.CreateFeatureclass_management(path_parts[0],path_parts[1],data_type,'','','',spatial_reference)
-	
+
+	if write_ids is True:  # if we're supposed to write out the IDs, add a field
+		id_field = "feature_id"
+		arcpy.AddField_management(filename, id_field, "Long")
+	else:
+		id_field = False
+
 	valid_datatypes = (arcpy.Point, arcpy.Polygon, arcpy.Polyline, arcpy.Multipoint)
 	
 	log.write("writing shapes to %s" % filename)
@@ -267,8 +273,15 @@ def write_features_from_list(data=None, data_type="POINT", filename=None, spatia
 	
 	log.write("writing %s shapes" % len(data))
 	#i=0
-	for feature_shape in data:
+	for feature in data:
 		cont_flag = True # skip this by default if it's not a valid datatype
+
+		if id_field:  # if we're supposed to wirte id_fields, then we have tuples instead, where the first item is the feature, and the second is the ID
+			feature_id = feature[1]
+			feature_shape = feature[0]
+		else:
+			feature_shape = feature
+
 		if primary_datatype:
 			if isinstance(feature_shape,primary_datatype):
 				cont_flag = False
@@ -283,6 +296,10 @@ def write_features_from_list(data=None, data_type="POINT", filename=None, spatia
 		try:
 			in_feature = inserter.newRow()
 			in_feature.shape = feature_shape
+
+			if id_field:  # using this instead of if write_ids since they'll be effectively the same, and the IDE won't complain
+				in_feature.setValue(id_field, feature_id)
+
 			#i+=1
 			#in_feature.rowid = i
 			inserter.insertRow(in_feature)
@@ -296,7 +313,7 @@ def write_features_from_list(data=None, data_type="POINT", filename=None, spatia
 	return filename
 
 
-def get_centroids(feature=None, method="FEATURE_TO_POINT", dissolve=False, as_file=False):
+def get_centroids(feature=None, method="FEATURE_TO_POINT", dissolve=False, as_file=False, id_field=False):
 	"""
 		Given an input polygon, this function returns a list of arcpy.Point objects that represent the centroids
 
@@ -305,6 +322,7 @@ def get_centroids(feature=None, method="FEATURE_TO_POINT", dissolve=False, as_fi
 		(default - more accurate) and "ATTRIBUTE" (faster, but error-prone)
 	:param dissolve: boolean flag indicating whether or not to dissolve the input features befor obtaining centroids
 	:param as_file: boolean flag indicating whether to return the data as a file instead of a point list
+	:param id_field: when included, means to pull ids into a tuple with the centroid from the specified field
 	:return: list of arcpy.Point objects
 	:raise:
 	"""
@@ -330,19 +348,19 @@ def get_centroids(feature=None, method="FEATURE_TO_POINT", dissolve=False, as_fi
 			log.warning("Couldn't dissolve features first. Continuing anyway, but the results WILL be different than expected")
 
 	if method == "ATTRIBUTE":
-		points = centroid_attribute(feature)
+		points = centroid_attribute(feature, id_field=id_field)
 		if as_file:
 			if (len(points) > 0):
-				return_points = write_features_from_list(points,data_type="POINT",filename=None,spatial_reference=feature)
+				return_points = write_features_from_list(points,data_type="POINT",filename=None,spatial_reference=feature, write_ids=id_field)  # write_ids = id_field works because it just needs to set it to a non-false value
 			else:
 				return_points = None
 
 	elif method == "FEATURE_TO_POINT":
 		try:
 			if as_file:
-				return_points = centroid_feature_to_point(feature,as_file=True)
+				return_points = centroid_feature_to_point(feature,as_file=True, id_field=id_field)
 			else:
-				points = centroid_feature_to_point(feature)
+				points = centroid_feature_to_point(feature, id_field=id_field)
 		except:
 			err_str = traceback.format_exc()
 			log.warning("failed to obtain centroids using feature_to_point method. traceback follows:\n %s" % err_str)
@@ -352,8 +370,12 @@ def get_centroids(feature=None, method="FEATURE_TO_POINT", dissolve=False, as_fi
 	else:
 		return points
 
-def centroid_attribute(feature = None):
-	'''for internal use only - gets the centroid using the polygon attribute method - if you want to determine centroids, use get_centroids()'''
+def centroid_attribute(feature = None, id_field=False):
+	'''for internal use only - gets the centroid using the polygon attribute method - if you want to determine centroids, use get_centroids()
+
+
+	:param id_field: when included, means to pull ids into a tuple with the centroid from the specified field
+	'''
 	
 	curs = arcpy.SearchCursor(feature)
 	
@@ -363,12 +385,13 @@ def centroid_attribute(feature = None):
 	
 	return points
 
-def centroid_feature_to_point(feature,as_file=False):
+def centroid_feature_to_point(feature,as_file=False, id_field=None):
 	"""
 	for internal use only
 
 	:param feature: str feature class
 	:param as_file: boolean indicates whether to return the arcpy file instead of returning the point array
+	:param id_field: when included, means to pull ids into a tuple with the centroid from the specified field - can't return ids
 	:return: list containing arcpy.Point objects
 	"""
 	if as_file:
@@ -385,26 +408,35 @@ def centroid_feature_to_point(feature,as_file=False):
 	
 	points = []
 	for record in curs:
-		points.append(record.shape.getPart()) # get the shape's point
-	
+		item = None
+		shape = record.shape.getPart()
+
+		if id_field:
+			shape_id = record.getValue(id_field) # get the shape's point
+			item = (shape, shape_id)
+		else:
+			item = shape
+
+		points.append(item)
+
 	arcpy.Delete_management(t_name)  # clean up the in_memory workspace
 	del curs
 	
 	return points
 
-def get_centroids_as_file(feature=None,filename = None,spatial_reference = None,dissolve=True):
+def get_centroids_as_file(feature=None,filename = None,spatial_reference = None,dissolve=True, id_field=False):
 	"""shortcut function to get the centroids as a file - called functions do error checking
 
 	This function used to be more necessary, but is now deprecated by the as_file flag on get_centroids
 
 	:param feature: str file path - required
 	:param filename: optional - a filename will be generated
-	
+	:param id_field: when included, means to pull ids into a tuple with the centroid from the specified field
 	:rtype : str file path location to centroids
 	"""
 	
 	try:
-		return get_centroids(feature,dissolve=dissolve,as_file = True)
+		return get_centroids(feature,dissolve=dissolve,as_file = True, id_field=id_field)
 	except:
 		err_str = traceback.format_exc()
 		log.error("Couldn't get centroids into file - traceback follows:\n %s" % err_str)
